@@ -117,7 +117,7 @@ export default function Navbar({ onOpenLogin, onOpenSignup }) {
             </Link>
           )}
 
-          {/* Link 2: Doctor portal (Desktop Only) */}
+          {/* Link 2: Doctor portal (Desktop Only — Lightweight Doctor Companion) */}
           {role === 'DOCTOR' ? (
             <Link
               to="/doctor/dashboard"
@@ -125,14 +125,6 @@ export default function Navbar({ onOpenLogin, onOpenSignup }) {
             >
               <span>🩺</span>
               <span>{t('nav_doctor_space', 'Espace Médecin')}</span>
-            </Link>
-          ) : role === 'SUPER_ADMIN' || role === 'ADMIN' ? (
-            <Link
-              to="/admin/dashboard"
-              className="hidden md:flex bg-amber-400 hover:bg-amber-300 text-amber-950 font-black text-xs sm:text-sm px-3 sm:px-5 py-1.5 sm:py-2.5 rounded-full shadow-md transition-all items-center gap-1.5 whitespace-nowrap"
-            >
-              <span>🛡️</span>
-              <span>Console Admin</span>
             </Link>
           ) : !isAuthenticated ? (
             <Link
@@ -342,9 +334,9 @@ export default function Navbar({ onOpenLogin, onOpenSignup }) {
 
                     {/* Menu Items */}
                     <div className="space-y-0.5">
-                      {/* Item 1: Mes Rendez-vous & Suivi / Espace Dédié */}
+                      {/* Item 1: Mes Rendez-vous & Suivi / Espace Médecin */}
                       <Link
-                        to={user?.role === 'DOCTOR' ? '/doctor/dashboard' : user?.role === 'SUPER_ADMIN' ? '/admin/dashboard' : '/patient/dashboard'}
+                        to={user?.role === 'DOCTOR' ? '/doctor/dashboard' : '/patient/dashboard'}
                         onClick={() => setShowUserDropdown(false)}
                         className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-700 dark:text-slate-200 hover:bg-teal-50 dark:hover:bg-teal-950/40 hover:text-teal-800 dark:hover:text-teal-300 font-bold text-xs sm:text-sm transition-all group"
                       >
@@ -352,10 +344,8 @@ export default function Navbar({ onOpenLogin, onOpenSignup }) {
                           <Calendar className="w-4 h-4" />
                         </span>
                         <span>
-                          {user?.role === 'DOCTOR' 
+                          {user?.role === 'DOCTOR'
                             ? (lang === 'ar' ? 'فضاء الطبيب وجدول المواعيد' : 'Espace Médecin & Agenda')
-                            : user?.role === 'SUPER_ADMIN'
-                            ? (lang === 'ar' ? 'لوحة تحكم الإدارة' : 'Console Administration')
                             : (lang === 'ar' ? 'مواعيدي ومتابعتي' : 'Mes Rendez-vous & Suivi')}
                         </span>
                       </Link>
@@ -556,15 +546,6 @@ export default function Navbar({ onOpenLogin, onOpenSignup }) {
                   >
                     <span className="text-lg">🩺</span>
                     <span>{t('nav_doctor_space', 'Espace Médecin')}</span>
-                  </Link>
-                ) : role === 'SUPER_ADMIN' || role === 'ADMIN' ? (
-                  <Link
-                    to="/admin/dashboard"
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-900 dark:text-amber-200 font-black text-xs sm:text-sm border border-amber-200 dark:border-amber-800/60"
-                  >
-                    <span className="text-lg">🛡️</span>
-                    <span>Console Administrateur</span>
                   </Link>
                 ) : !isAuthenticated ? (
                   <Link

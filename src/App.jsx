@@ -63,8 +63,6 @@ const SearchDoctorsPage = lazyRetry(() => import('./pages/SearchDoctorsPage'));
 const PatientDashboardPage = lazyRetry(() => import('./pages/PatientDashboardPage'));
 const DoctorDashboardPage = lazyRetry(() => import('./pages/DoctorDashboardPage'));
 const DoctorAuthPage = lazyRetry(() => import('./pages/DoctorAuthPage'));
-const DoctorOnboardingPage = lazyRetry(() => import('./pages/DoctorOnboardingPage'));
-const AdminDashboardPage = lazyRetry(() => import('./pages/AdminDashboardPage'));
 const PrescriptionVerifyPage = lazyRetry(() => import('./pages/PrescriptionVerifyPage'));
 const TeleconsultationPage = lazyRetry(() => import('./pages/TeleconsultationPage'));
 const DoctorDetailsPage = lazyRetry(() => import('./pages/DoctorDetailsPage'));
@@ -261,18 +259,11 @@ function AppContent() {
                 } 
               />
               <Route path="/doctor/auth" element={<DoctorAuthPage />} />
-              <Route path="/doctor/onboarding" element={<DoctorOnboardingPage />} />
-              <Route path="/doctor/finalize" element={<DoctorOnboardingPage />} />
-              <Route path="/doctor/setup" element={<DoctorOnboardingPage />} />
-              <Route
-                path="/admin/dashboard"
-                element={
-                  <AdminProtectedRoute>
-                    <AdminDashboardPage />
-                  </AdminProtectedRoute>
-                }
-              />
-              <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
+              <Route path="/doctor/onboarding" element={<Navigate to="/doctor/auth" replace />} />
+              <Route path="/doctor/finalize" element={<Navigate to="/doctor/auth" replace />} />
+              <Route path="/doctor/setup" element={<Navigate to="/doctor/auth" replace />} />
+              <Route path="/admin/*" element={<Navigate to="/" replace />} />
+              <Route path="/admin" element={<Navigate to="/" replace />} />
               <Route path="/verify/prescription/:hash" element={<PrescriptionVerifyPage />} />
               <Route path="/verify/prescription" element={<PrescriptionVerifyPage />} />
               <Route path="/pages/Prescriptions/verify.html" element={<PrescriptionVerifyPage />} />

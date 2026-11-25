@@ -11,20 +11,10 @@ import DoctorHeader from '../components/doctor/DoctorHeader';
 import DoctorTabsNav from '../components/doctor/DoctorTabsNav';
 import { ENABLE_REVIEWS } from '../config/features';
 
-// Lazy-loaded Doctor Dashboard Tabs for fast loading
-const DoctorCaisseTab = lazy(() => import('../components/doctor/DoctorCaisseTab'));
-const DoctorEhrTab = lazy(() => import('../components/doctor/DoctorEhrTab'));
-const DoctorCabinetTab = lazy(() => import('../components/doctor/DoctorCabinetTab'));
-const DoctorWhatsappTab = lazy(() => import('../components/doctor/DoctorWhatsappTab'));
+// Lightweight Doctor Companion Tabs (mobile-friendly essentials only)
 const DoctorAgendaTab = lazy(() => import('../components/doctor/DoctorAgendaTab'));
-const DoctorOrdonnanceTab = lazy(() => import('../components/doctor/DoctorOrdonnanceTab'));
-const DoctorCnamTab = lazy(() => import('../components/doctor/DoctorCnamTab'));
 const DoctorRetardTab = lazy(() => import('../components/doctor/DoctorRetardTab'));
-const DoctorLiaisonTab = lazy(() => import('../components/doctor/DoctorLiaisonTab'));
-const DoctorReputationTab = lazy(() => import('../components/doctor/DoctorReputationTab'));
 const DoctorTeleconsultTab = lazy(() => import('../components/doctor/DoctorTeleconsultTab'));
-const DoctorSubscriptionTab = lazy(() => import('../components/doctor/DoctorSubscriptionTab'));
-const DoctorGuidedTour = lazy(() => import('../components/doctor/DoctorGuidedTour'));
 
 export default function DoctorDashboardPage() {
   const { user, loading, logout } = useAuth();
@@ -399,11 +389,10 @@ export default function DoctorDashboardPage() {
       {/* ════════════════ MAIN BODY CONTAINER ════════════════ */}
       <main className="flex-1 w-full max-w-[1780px] mx-auto px-3 sm:px-6 lg:px-8 py-5 space-y-5">
         
-        {/* ════════ HORIZONTAL SCROLLABLE TABS BAR (Screenshots 1-5) ════════ */}
+        {/* ════════ LIGHTWEIGHT DOCTOR COMPANION TABS ════════ */}
         <DoctorTabsNav
           activeTab={activeTab}
           onSelectTab={setActiveTab}
-          onOpenTour={() => setTourOpen(true)}
         />
 
         {/* ════════ ACTIVE TAB CONTENT ════════ */}
@@ -412,33 +401,6 @@ export default function DoctorDashboardPage() {
             <div className="w-8 h-8 rounded-full border-4 border-teal-500/20 border-t-[#00A896] animate-spin" />
           </div>
         }>
-        {activeTab === 'caisse' && (
-          <DoctorCaisseTab key={`caisse-${doctorId}`} doctorId={doctorId} doctorName={doctorName} />
-        )}
-
-        {activeTab === 'ehr' && (
-          <DoctorEhrTab key={`ehr-${doctorId}`} doctorId={doctorId} doctorName={doctorName} appointments={appointments} />
-        )}
-
-        {activeTab === 'cabinet' && (
-          <DoctorCabinetTab
-            doctorId={doctorId}
-            doctorName={doctorName}
-            doctorSpecialty={doctorSpecialty}
-            doctorProfile={doctorProfile}
-          />
-        )}
-
-        {activeTab === 'whatsapp' && (
-          <DoctorWhatsappTab 
-            doctorId={doctorId} 
-            doctorName={doctorName} 
-            doctorSpecialty={doctorSpecialty}
-            currentPatient={currentPatient}
-            queue={appointments}
-          />
-        )}
-
         {activeTab === 'agenda' && (
           <DoctorAgendaTab
             queue={appointments}
@@ -454,63 +416,16 @@ export default function DoctorDashboardPage() {
           />
         )}
 
-        {activeTab === 'ordonnance' && (
-          <DoctorOrdonnanceTab
-            doctorId={doctorId}
-            doctorName={doctorName}
-            doctorSpecialty={doctorSpecialty}
-            doctorProfile={doctorProfile}
-            currentPatient={currentPatient}
-          />
-        )}
-
-        {activeTab === 'cnam' && (
-          <DoctorCnamTab
-            doctorId={doctorId}
-            doctorName={doctorName}
-            doctorProfile={doctorProfile}
-          />
-        )}
-
         {activeTab === 'retard' && (
           <DoctorRetardTab key={`retard-${doctorId}`} doctorId={doctorId} doctorName={doctorName} />
-        )}
-
-        {activeTab === 'liaison' && (
-          <DoctorLiaisonTab
-            doctorId={doctorId}
-            doctorName={doctorName}
-            doctorSpecialty={doctorSpecialty}
-            doctorProfile={doctorProfile}
-          />
-        )}
-
-        {ENABLE_REVIEWS && activeTab === 'reputation' && (
-          <DoctorReputationTab doctorId={doctorId} doctorName={doctorName} />
         )}
 
         {activeTab === 'teleconsult' && (
           <DoctorTeleconsultTab doctorName={doctorName} />
         )}
-
-        {activeTab === 'abonnement' && (
-          <DoctorSubscriptionTab doctorId={doctorId} doctorName={doctorName} />
-        )}
         </Suspense>
 
       </main>
-
-      {/* ════════ GUIDED ANIMATED TOUR ════════ */}
-      {tourOpen && (
-        <Suspense fallback={null}>
-          <DoctorGuidedTour
-            activeTab={activeTab}
-            isOpen={tourOpen}
-            onClose={() => setTourOpen(false)}
-            onFinish={() => setTourOpen(false)}
-          />
-        </Suspense>
-      )}
 
     </div>
   );

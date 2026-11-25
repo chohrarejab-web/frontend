@@ -1,7 +1,7 @@
 import React, { useRef } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useLanguage } from '../../context/LanguageContext';
-import { ENABLE_REVIEWS } from '../../config/features';
+import { ENABLE_REVIEWS, DOCTOR_COMPANION_MODE, DOCTOR_COMPANION_TABS } from '../../config/features';
 
 export default function DoctorTabsNav({ activeTab, onSelectTab, onOpenTour }) {
   const scrollRef = useRef(null);
@@ -9,20 +9,15 @@ export default function DoctorTabsNav({ activeTab, onSelectTab, onOpenTour }) {
 
   const allTabs = [
     { id: 'agenda', icon: '📅', label: t('doc_tab_agenda', 'Agenda & File d\'Attente') },
-    { id: 'caisse', icon: '💳', label: t('doc_tab_caisse', 'Caisse & Recettes') },
-    { id: 'whatsapp', icon: '💬', label: t('doc_tab_whatsapp', 'WhatsApp & SMS') },
     { id: 'retard', icon: '⏱️', label: t('doc_tab_retard', 'Retard Cabinet') },
-    { id: 'ehr', icon: '📁', label: t('doc_tab_ehr', 'Dossier Médical (EHR)') },
-    { id: 'ordonnance', icon: '💊', label: t('doc_tab_ordonnance', 'Ordonnances PCT') },
-    { id: 'cnam', icon: '🏛️', label: t('doc_tab_cnam', 'Bulletin CNAM C1') },
-    { id: 'liaison', icon: '📨', label: t('doc_tab_liaison', 'Lettre de Liaison') },
-    { id: 'cabinet', icon: '🏢', label: t('doc_tab_cabinet', 'Mon Cabinet') },
-    { id: 'abonnement', icon: '🏦', label: t('doc_tab_subscription', 'Abonnement & Paiement') },
-    { id: 'reputation', icon: '⭐', label: t('doc_tab_reputation', 'E-Réputation & Avis') },
     { id: 'teleconsult', icon: '🎥', label: t('doc_tab_teleconsult', 'Salon Téléconsultation'), isHighlight: true }
   ];
 
-  const tabs = ENABLE_REVIEWS ? allTabs : allTabs.filter(t => t.id !== 'reputation');
+  const tabs = allTabs.filter((tab) => {
+    if (!ENABLE_REVIEWS && tab.id === 'reputation') return false;
+    if (DOCTOR_COMPANION_MODE && !DOCTOR_COMPANION_TABS.includes(tab.id)) return false;
+    return true;
+  });
 
   const handleScrollLeft = () => {
     if (scrollRef.current) {
