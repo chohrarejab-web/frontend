@@ -1,0 +1,441 @@
+import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { Search, MapPin, Calendar, Clock, Star, ShieldCheck, Video, Phone, ChevronRight, Check } from 'lucide-react';
+import api from '../services/api';
+import { useAuth } from '../context/AuthContext';
+
+export default function SearchDoctorsPage({ onOpenLogin }) {
+  const [searchParams] = useSearchParams();
+  const [doctors, setDoctors] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [keyword, setKeyword] = useState(searchParams.get('keyword') || '');
+  const [city, setCity] = useState(searchParams.get('city') || '');
+  const [specialty, setSpecialty] = useState(searchParams.get('specialty') || 'all');
+  const [cnamOnly, setCnamOnly] = useState(!!searchParams.get('cnam'));
+  const [telehealthOnly, setTelehealthOnly] = useState(!!searchParams.get('telehealth'));
+
+  // Booking Modal State
+  const [bookingDoctor, setBookingDoctor] = useState(null);
+  const [selectedSlot, setSelectedSlot] = useState(null);
+  const [bookingDate, setBookingDate] = useState(new Date().toISOString().split('T')[0]);
+  const [availableSlots, setAvailableSlots] = useState([]);
+  const [slotsLoading, setSlotsLoading] = useState(false);
+  const [patientName, setPatientName] = useState('');
+  const [patientPhone, setPatientPhone] = useState('');
+  const [consultType, setConsultType] = useState('CABINET');
+  const [bookingSuccess, setBookingSuccess] = useState(null);
+  const [bookingError, setBookingError] = useState('');
+  const [submittingBooking, setSubmittingBooking] = useState(false);
+
+  const { user, isAuthenticated } = useAuth();
+
+  useEffect(() => {
+    if (user) {
+      setPatientName(user.name || '');
+      setPatientPhone(user.phone || '');
+    }
+  }, [user]);
+
+  const fetchDoctors = async () => {
+    setLoading(true);
+    try {
+      const params = {};
+      if (keyword) params.keyword = keyword;
+      if (city) params.city = city;
+      if (specialty && specialty !== 'all') params.specialty = specialty;
+      if (cnamOnly) params.cnam = '1';
+      if (telehealthOnly) params.telehealth = '1';
+
+      const res = await api.getDoctors(params);
+      if (res.success && res.data) {
+        setDoctors(res.data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch doctors:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchDoctors();
+  }, [keyword, city, specialty, cnamOnly, telehealthOnly]);
+
+  const openBookingModal = async (doc) => {
+    setBookingDoctor(doc);
+    setSelectedSlot(null);
+    setBookingSuccess(null);
+    setBookingError('');
+    setSlotsLoading(true);
+    try {
+      const res = await api.getDoctorSlots(doc.id, bookingDate);
+      if (res.success && res.slots) {
+        setAvailableSlots(res.slots);
+      } else {
+        setAvailableSlots(['09:00', '09:30', '10:00', '10:30', '11:00', '14:30', '15:00', '16:00']);
+      }
+    } catch (err) {
+      setAvailableSlots(['09:00', '09:30', '10:00', '10:30', '11:00', '14:30', '15:00', '16:00']);
+    } finally {
+      setSlotsLoading(false);
+    }
+  };
+
+  const handleConfirmBooking = async (e) => {
+    e?.preventDefault();
+    if (!selectedSlot) {
+      setBookingError('Veuillez sélectionner un créneau horaire.');
+      return;
+    }
+    setSubmittingBooking(true);
+    setBookingError('');
+
+    try {
+      const payload = {
+        doctorId: bookingDoctor.id,
+        doctorName: bookingDoctor.name,
+        patientName,
+        patientPhone,
+        date: bookingDate,
+        time: selectedSlot,
+        type: consultType,
+        fee: bookingDoctor.fee || '70 TND'
+      };
+      const res = await api.createAppointment(payload);
+      if (res.success) {
+        setBookingSuccess(res.data || payload);
+      } else {
+        setBookingError(res.message || 'Créneau indisponible.');
+      }
+    } catch (err) {
+      setBookingError(err.message || 'Erreur lors de la réservation.');
+    } finally {
+      setSubmittingBooking(false);
+    }
+  };
+
+  return (
+    <div className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+      
+      {/* ════════ SEARCH & FILTERS BAR ════════ */}
+      <div className="bg-white p-4 sm:p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          
+          <div className="flex items-center gap-2.5 px-4 py-2.5 bg-slate-50 rounded-2xl border border-slate-200">
+            <Search className="w-4 h-4 text-slate-400 shrink-0" />
+            <input
+              type="text"
+              value={keyword}
+              onChange={(e) => setKeyword(e.target.value)}
+              placeholder="Médecin, symptôme (ex: 9alb, dent)..."
+              className="w-full bg-transparent text-xs font-bold outline-none"
+            />
+          </div>
+
+          <div className="flex items-center gap-2.5 px-4 py-2.5 bg-slate-50 rounded-2xl border border-slate-200">
+            <MapPin className="w-4 h-4 text-slate-400 shrink-0" />
+            <input
+              type="text"
+              value={city}
+              onChange={(e) => setCity(e.target.value)}
+              placeholder="Ville, gouvernorat (Tunis, Sousse)..."
+              className="w-full bg-transparent text-xs font-bold outline-none"
+            />
+          </div>
+
+          <select
+            value={specialty}
+            onChange={(e) => setSpecialty(e.target.value)}
+            className="px-4 py-2.5 bg-slate-50 rounded-2xl border border-slate-200 text-xs font-bold outline-none text-slate-700 cursor-pointer"
+          >
+            <option value="all">Toutes les Spécialités</option>
+            <option value="cardio">Cardiologie</option>
+            <option value="pediatrie">Pédiatrie</option>
+            <option value="dentiste">Médecine Dentaire</option>
+            <option value="generaliste">Médecine Générale</option>
+            <option value="ophtalmo">Ophtalmologie</option>
+            <option value="gyneco">Gynécologie</option>
+            <option value="ortho">Orthopédie</option>
+          </select>
+
+        </div>
+
+        {/* Checkbox Chips */}
+        <div className="flex items-center gap-3 pt-2 text-xs font-bold text-slate-600 flex-wrap">
+          <label className="flex items-center gap-2 cursor-pointer bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200 hover:bg-slate-100">
+            <input
+              type="checkbox"
+              checked={cnamOnly}
+              onChange={(e) => setCnamOnly(e.target.checked)}
+              className="accent-[#00A896] rounded"
+            />
+            <span>🏛️ Conventionné CNAM uniquement</span>
+          </label>
+
+          <label className="flex items-center gap-2 cursor-pointer bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200 hover:bg-slate-100">
+            <input
+              type="checkbox"
+              checked={telehealthOnly}
+              onChange={(e) => setTelehealthOnly(e.target.checked)}
+              className="accent-[#00A896] rounded"
+            />
+            <span>📹 Téléconsultation disponible</span>
+          </label>
+        </div>
+      </div>
+
+      {/* ════════ DOCTORS LIST ════════ */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-black text-slate-900">
+            {doctors.length} praticien(s) disponible(s)
+          </h2>
+        </div>
+
+        {loading ? (
+          <div className="text-center py-12 text-slate-400 text-sm font-bold animate-pulse">
+            Recherche des praticiens en cours...
+          </div>
+        ) : doctors.length === 0 ? (
+          <div className="bg-white p-12 rounded-3xl border border-slate-200 text-center space-y-3">
+            <span className="text-4xl">🩺</span>
+            <h3 className="text-base font-black text-slate-800">Aucun médecin trouvé</h3>
+            <p className="text-xs text-slate-500">Essayez d'élargir votre recherche ou de modifier vos filtres.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-4">
+            {doctors.map((doc) => (
+              <div
+                key={doc.id}
+                className="bg-white p-5 sm:p-6 rounded-3xl border border-slate-200 shadow-sm hover:shadow-md transition-all flex flex-col md:flex-row items-start md:items-center justify-between gap-5"
+              >
+                {/* Doctor Bio */}
+                <div className="flex items-start gap-4">
+                  <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-teal-50 overflow-hidden border border-teal-200 shrink-0">
+                    <img
+                      src={doc.photo || '/images/hero_doctor.png'}
+                      alt={doc.name}
+                      className="w-full h-full object-cover"
+                      onError={(e) => { e.target.src = '/images/hero_doctor.png'; }}
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h3 className="text-base sm:text-lg font-black text-slate-900 leading-tight">
+                        {doc.name}
+                      </h3>
+                      {doc.cnam && (
+                        <span className="text-[10px] font-black bg-teal-50 text-[#00A896] px-2.5 py-0.5 rounded-full border border-teal-200">
+                          🏛️ Conventionné CNAM
+                        </span>
+                      )}
+                      {doc.telehealth && (
+                        <span className="text-[10px] font-black bg-sky-50 text-sky-700 px-2.5 py-0.5 rounded-full border border-sky-200">
+                          📹 Vidéo HD
+                        </span>
+                      )}
+                    </div>
+
+                    <p className="text-xs font-bold text-[#0086cd]">{doc.specialty}</p>
+
+                    <p className="text-xs text-slate-500 flex items-center gap-1">
+                      <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                      <span>{doc.address || doc.city}</span>
+                    </p>
+
+                    <div className="flex items-center gap-3 text-xs pt-1">
+                      <div className="flex items-center gap-1 text-amber-500 font-black">
+                        <Star className="w-3.5 h-3.5 fill-amber-400" />
+                        <span>{doc.rating || 4.9}</span>
+                        <span className="text-slate-400 font-medium">({doc.reviewCount || 40} avis)</span>
+                      </div>
+                      <span className="text-slate-300">•</span>
+                      <span className="font-extrabold text-slate-700">💵 {doc.fee || '70 TND'}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Right Action */}
+                <div className="w-full md:w-auto shrink-0 flex flex-col sm:flex-row md:flex-col items-stretch gap-2">
+                  <button
+                    onClick={() => openBookingModal(doc)}
+                    className="px-6 py-3 bg-[#00b4b6] hover:bg-teal-600 text-white font-black text-xs sm:text-sm rounded-2xl shadow-md shadow-teal-500/20 transition-all cursor-pointer flex items-center justify-center gap-2"
+                  >
+                    <Calendar className="w-4 h-4" />
+                    <span>Prendre Rendez-Vous</span>
+                  </button>
+                  <span className="text-[11px] text-center text-emerald-600 font-bold">
+                    ✓ Prochain créneau : Aujourd'hui
+                  </span>
+                </div>
+
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* ════════ BOOKING MODAL ════════ */}
+      {bookingDoctor && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in">
+          <div className="w-full max-w-lg bg-white dark:bg-[#0b132b] text-slate-800 dark:text-slate-100 rounded-3xl p-6 sm:p-8 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-5 max-h-[90vh] overflow-y-auto custom-scrollbar">
+            
+            {/* Header */}
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+              <div>
+                <h3 className="text-lg font-black text-slate-900 dark:text-white">
+                  Réserver chez {bookingDoctor.name}
+                </h3>
+                <p className="text-xs text-[#0086cd] font-bold">{bookingDoctor.specialty} • {bookingDoctor.fee}</p>
+              </div>
+              <button
+                onClick={() => setBookingDoctor(null)}
+                className="p-1 rounded-full text-slate-400 hover:text-slate-600 cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            {bookingSuccess ? (
+              <div className="text-center py-6 space-y-4">
+                <div className="w-16 h-16 rounded-2xl bg-emerald-50 text-emerald-600 mx-auto flex items-center justify-center text-3xl font-black">
+                  ✓
+                </div>
+                <h4 className="text-lg font-black text-slate-900 dark:text-white">Rendez-vous Confirmé !</h4>
+                <p className="text-xs text-slate-500">
+                  Votre consultation avec <strong>{bookingSuccess.doctorName}</strong> est enregistrée pour le <strong>{bookingSuccess.date}</strong> à <strong>{bookingSuccess.time}</strong>.
+                </p>
+                <button
+                  onClick={() => setBookingDoctor(null)}
+                  className="w-full py-3 bg-[#00b4b6] hover:bg-teal-600 text-white font-black text-xs rounded-xl shadow-md cursor-pointer"
+                >
+                  Fermer
+                </button>
+              </div>
+            ) : (
+              <form onSubmit={handleConfirmBooking} className="space-y-4 text-xs">
+                
+                {bookingError && (
+                  <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-xl font-semibold">
+                    {bookingError}
+                  </div>
+                )}
+
+                {/* Consultation Mode */}
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1.5">Mode de consultation :</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setConsultType('CABINET')}
+                      className={`p-3 rounded-2xl border text-xs font-bold flex items-center justify-center gap-2 cursor-pointer transition-all ${
+                        consultType === 'CABINET'
+                          ? 'border-[#00b4b6] bg-teal-50 text-[#00A896]'
+                          : 'border-slate-200 text-slate-600'
+                      }`}
+                    >
+                      <span>🏥 Au Cabinet</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setConsultType('TELECONSULT')}
+                      className={`p-3 rounded-2xl border text-xs font-bold flex items-center justify-center gap-2 cursor-pointer transition-all ${
+                        consultType === 'TELECONSULT'
+                          ? 'border-[#00b4b6] bg-teal-50 text-[#00A896]'
+                          : 'border-slate-200 text-slate-600'
+                      }`}
+                    >
+                      <span>📹 Téléconsultation</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Date Picker */}
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Date du rendez-vous :</label>
+                  <input
+                    type="date"
+                    required
+                    value={bookingDate}
+                    onChange={(e) => {
+                      setBookingDate(e.target.value);
+                      openBookingModal(bookingDoctor);
+                    }}
+                    className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl font-bold outline-none"
+                  />
+                </div>
+
+                {/* Slots Grid */}
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                    Créneaux disponibles ({bookingDate}) :
+                  </label>
+                  {slotsLoading ? (
+                    <div className="text-center py-4 text-slate-400">Chargement des créneaux...</div>
+                  ) : (
+                    <div className="grid grid-cols-4 gap-2">
+                      {availableSlots.map((s, idx) => (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => setSelectedSlot(s)}
+                          className={`py-2 px-2 text-center rounded-xl font-mono text-xs font-bold border transition-all cursor-pointer ${
+                            selectedSlot === s
+                              ? 'bg-[#00b4b6] text-white border-[#00b4b6] shadow-sm'
+                              : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-teal-400'
+                          }`}
+                        >
+                          {s}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Patient Info */}
+                <div className="grid grid-cols-2 gap-3 pt-2">
+                  <div>
+                    <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Nom du patient :</label>
+                    <input
+                      type="text"
+                      required
+                      value={patientName}
+                      onChange={(e) => setPatientName(e.target.value)}
+                      placeholder="Ex. Fatma Benali"
+                      className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl font-bold outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Téléphone :</label>
+                    <input
+                      type="tel"
+                      required
+                      maxLength={8}
+                      value={patientPhone}
+                      onChange={(e) => setPatientPhone(e.target.value.replace(/[^0-9]/g, ''))}
+                      placeholder="98123456"
+                      className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl font-bold outline-none"
+                    />
+                  </div>
+                </div>
+
+                {/* Confirm Button */}
+                <button
+                  type="submit"
+                  disabled={submittingBooking || !selectedSlot}
+                  className="w-full py-3.5 bg-gradient-to-r from-[#00b4b6] to-[#0086cd] hover:from-[#00a3a5] hover:to-[#0074b3] text-white font-black text-xs sm:text-sm rounded-2xl shadow-lg cursor-pointer transition-all disabled:opacity-50 mt-3"
+                >
+                  {submittingBooking ? 'Confirmation...' : `Confirmer le RDV (${selectedSlot || 'Créneau'}) ›`}
+                </button>
+
+              </form>
+            )}
+
+          </div>
+        </div>
+      )}
+
+    </div>
+  );
+}

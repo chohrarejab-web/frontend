@@ -1,0 +1,120 @@
+/**
+ * SahaTN / Maw2idi — Unified Frontend API Client
+ * Automatically handles JWT Bearer tokens and CSRF token protection
+ */
+
+let csrfToken = null;
+
+export async function getCsrfToken() {
+  if (csrfToken) return csrfToken;
+  try {
+    const res = await fetch('/api/auth/csrf-token');
+    const data = await res.json();
+    if (data.success && data.csrfToken) {
+      csrfToken = data.csrfToken;
+    }
+  } catch (err) {
+    console.warn('[API] Failed to pre-fetch CSRF token:', err);
+  }
+  return csrfToken;
+}
+
+export async function apiRequest(endpoint, options = {}) {
+  const token = localStorage.getItem('sahatn_token');
+  const headers = {
+    'Content-Type': 'application/json',
+    ...(options.headers || {})
+  };
+
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  // Include anti-CSRF token on mutation requests (POST, PUT, DELETE, PATCH)
+  const method = (options.method || 'GET').toUpperCase();
+  if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(method)) {
+    const csrf = await getCsrfToken();
+    if (csrf) {
+      headers['X-CSRF-Token'] = csrf;
+    }
+  }
+
+  const url = endpoint.startsWith('/') ? endpoint : `/api/${endpoint}`;
+  const response = await fetch(url, {
+    ...options,
+    headers
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const error = new Error(data.message || data.error || `HTTP error ${response.status}`);
+    error.status = response.status;
+    error.data = data;
+    throw error;
+  }
+
+  return data;
+}
+
+export const api = {
+  // Auth
+  login: (credentials) => apiRequest('/api/auth/login', { method: 'POST', body: JSON.stringify(credentials) }),
+  verify2FA: (payload) => apiRequest('/api/auth/verify-2fa', { method: 'POST', body: JSON.stringify(payload) }),
+  resend2FA: (payload) => apiRequest('/api/auth/resend-2fa', { method: 'POST', body: JSON.stringify(payload) }),
+  register: (payload) => apiRequest('/api/auth/register', { method: 'POST', body: JSON.stringify(payload) }),
+  getMe: () => apiRequest('/api/auth/me'),
+  logout: () => apiRequest('/api/auth/logout', { method: 'POST' }),
+  forgotPassword: (email) => apiRequest('/api/auth/forgot-password', { method: 'POST', body: JSON.stringify({ email }) }),
+  verifyResetCode: (payload) => apiRequest('/api/auth/verify-reset-code', { method: 'POST', body: JSON.stringify(payload) }),
+  resetPassword: (payload) => apiRequest('/api/auth/reset-password', { method: 'POST', body: JSON.stringify(payload) }),
+
+  // Doctors
+  getDoctors: (params = {}) => {
+    const qs = new URLSearchParams(params).toString();
+    return apiRequest(`/api/doctors${qs ? `?${qs}` : ''}`);
+  },
+  getDoctorById: (id) => apiRequest(`/api/doctors/${id}`),
+  getDoctorSlots: (doctorId, date) => apiRequest(`/api/appointments/slots?doctorId=${doctorId}&date=${date}`),
+  updateDoctorSchedule: (doctorId, schedule) => apiRequest(`/api/doctors/${doctorId}/schedule`, { method: 'PUT', body: JSON.stringify(schedule) }),
+
+  // Appointments
+  createAppointment: (payload) => apiRequest('/api/appointments', { method: 'POST', body: JSON.stringify(payload) }),
+  cancelAppointment: (id) => apiRequest(`/api/appointments/${id}/cancel`, { method: 'PUT' }),
+
+  // Queue
+  getQueue: (doctorId) => apiRequest(`/api/queue${doctorId ? `?doctorId=${doctorId}` : ''}`),
+  callNextPatient: (doctorId) => apiRequest(`/api/queue/call-next`, { method: 'POST', body: JSON.stringify({ doctorId }) }),
+  setDelay: (doctorId, minutes) => apiRequest('/api/queue/delay', { method: 'POST', body: JSON.stringify({ doctorId, minutes }) }),
+
+  // Patient
+  getPatientProfile: (patientId) => apiRequest(`/api/patient/profile${patientId ? `?patientId=${patientId}` : ''}`),
+  updateHealthRecord: (payload) => apiRequest('/api/patient/health-record', { method: 'PUT', body: JSON.stringify(payload) }),
+
+  // Prescriptions
+  getPrescriptions: (params = {}) => {
+    const qs = new URLSearchParams(params).toString();
+    return apiRequest(`/api/prescriptions${qs ? `?${qs}` : ''}`);
+  },
+  createPrescription: (payload) => apiRequest('/api/prescriptions', { method: 'POST', body: JSON.stringify(payload) }),
+  verifyPrescription: (hash) => apiRequest(`/api/prescriptions/verify/${hash}`),
+
+  // Admin
+  getAdminStats: () => apiRequest('/api/admin/stats'),
+  verifyAdminSession: () => apiRequest('/api/admin/verify-session'),
+  getActiveSessions: () => apiRequest('/api/admin/active-sessions'),
+  revokeSession: (token) => apiRequest('/api/admin/revoke-session', { method: 'POST', body: JSON.stringify({ token }) }),
+  getLockedAccounts: () => apiRequest('/api/admin/locked-accounts'),
+  unlockAccount: (email) => apiRequest('/api/admin/unlock-account', { method: 'POST', body: JSON.stringify({ email }) }),
+  getAuditLedger: () => apiRequest('/api/admin/audit-ledger'),
+  getDatabaseDump: () => apiRequest('/api/admin/database/dump'),
+  getDatabaseTable: (table) => apiRequest(`/api/admin/table/${table}`),
+
+  // AI DocBot
+  queryDocBot: (query, history = []) => apiRequest('/api/ai/docbot', { method: 'POST', body: JSON.stringify({ query, history }) }),
+
+  // Reviews
+  getReviews: (doctorId) => apiRequest(`/api/reviews${doctorId ? `?doctorId=${doctorId}` : ''}`),
+  submitReview: (payload) => apiRequest('/api/reviews', { method: 'POST', body: JSON.stringify(payload) })
+};
+
+export default api;
