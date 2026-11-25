@@ -5,7 +5,10 @@
 import { translateAlertMessage, getCurrentLang } from '../utils/alertTranslator';
 
 export const PRIMARY_API_URL = (import.meta.env.VITE_API_URL || 'https://maw3edi-backend-production.up.railway.app').replace(/\/$/, '');
-export const FALLBACK_API_URL = (import.meta.env.VITE_FALLBACK_API_URL || 'http://localhost:4000').replace(/\/$/, '');
+const isLocalhostHost = typeof window !== 'undefined' && /^(localhost|127\.0\.0\.1)$/i.test(window.location.hostname);
+export const FALLBACK_API_URL = isLocalhostHost
+  ? (import.meta.env.VITE_FALLBACK_API_URL || 'http://localhost:4000').replace(/\/$/, '')
+  : '';
 export const API_BASE_URL = PRIMARY_API_URL;
 
 let activeApiUrl = PRIMARY_API_URL;
