@@ -715,7 +715,7 @@ export default function SearchDoctorsPage({ onOpenLogin }) {
       const popupContent = `
         <div style="font-family: inherit; padding: 4px; max-width: 230px; direction: ${isAr ? 'rtl' : 'ltr'}; text-align: ${isAr ? 'right' : 'left'};">
           <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 8px; cursor: pointer;" onclick="window.sahatnScrollToDoctor && window.sahatnScrollToDoctor('${doc.id}')" title="${isAr ? 'انتقل إلى بطاقة الطبيب' : 'Aller à la fiche du praticien'}">
-            <img src="${avatar}" style="width: 40px; height: 40px; border-radius: 10px; object-fit: cover; border: 1.5px solid #00b4b6;" />
+            <img src="${avatar}" loading="lazy" decoding="async" style="width: 40px; height: 40px; border-radius: 10px; object-fit: cover; border: 1.5px solid #00b4b6;" />
             <div style="min-width: 0;">
               <strong style="color: #0086cd; font-size: 13px; display: block; line-height: 1.2;">${docDisplayName}</strong>
               <span style="font-size: 10px; color: #64748b; font-weight: bold; display: block;">${specText}</span>
@@ -1110,6 +1110,8 @@ export default function SearchDoctorsPage({ onOpenLogin }) {
                               src={resolveAvatar(doc.avatar)}
                               onError={(e) => { e.currentTarget.src = '/images/3ila_doctor.jpeg'; }}
                               alt={docDisplayName}
+                              loading="lazy"
+                              decoding="async"
                               className="w-20 h-20 sm:w-24 sm:h-24 md:w-26 md:h-26 rounded-2xl object-cover shadow-sm border-2 border-slate-100 dark:border-slate-700 group-hover/avatar:scale-105 group-hover/avatar:shadow-md transition-all duration-300 doctor-card-avatar"
                             />
                             <span
@@ -1493,6 +1495,8 @@ export default function SearchDoctorsPage({ onOpenLogin }) {
             <div className="flex items-start gap-4 pb-4 border-b border-slate-100 dark:border-slate-800">
               <img
                 src={resolveAvatar(selectedDoctorProfile.avatar)}
+                loading="lazy"
+                decoding="async"
                 className="w-20 h-20 rounded-2xl object-cover border-2 border-teal-100 dark:border-teal-800 shadow-sm"
                 alt=""
               />

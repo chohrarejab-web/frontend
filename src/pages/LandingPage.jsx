@@ -384,6 +384,8 @@ export default function LandingPage({ onOpenLogin }) {
                   <img
                     src="/images/landing_hero_doctor.jpg"
                     alt={isAr ? 'طبيب ممارس Maw2idi' : 'Médecin Praticien Maw2idi'}
+                    fetchPriority="high"
+                    decoding="async"
                     className="w-full h-full object-cover object-center scale-100"
                   />
                 </div>
@@ -476,6 +478,8 @@ export default function LandingPage({ onOpenLogin }) {
                                   <img
                                     src={d.avatar || '/images/doctor_selim.jpg'}
                                     alt={docName}
+                                    loading="lazy"
+                                    decoding="async"
                                     className="w-full h-full object-cover"
                                   />
                                 </div>
@@ -544,6 +548,8 @@ export default function LandingPage({ onOpenLogin }) {
                                       <img
                                         src={d.avatar || '/images/doctor_selim.jpg'}
                                         alt={docName}
+                                        loading="lazy"
+                                        decoding="async"
                                         className="w-full h-full object-cover"
                                       />
                                     </div>
@@ -959,6 +965,8 @@ export default function LandingPage({ onOpenLogin }) {
               <img
                 src="/images/how_it_works_user.png"
                 alt={isAr ? 'كيف يعمل Maw2idi' : 'Comment fonctionne Maw2idi'}
+                loading="lazy"
+                decoding="async"
                 className="w-full max-w-[460px] h-auto object-cover rounded-[32px] shadow-lg hover:shadow-2xl hover:scale-[1.02] transition-all duration-500"
               />
             </div>
@@ -1071,6 +1079,8 @@ export default function LandingPage({ onOpenLogin }) {
               <div className="p-2 sm:p-3 flex items-center justify-center gap-3 group hover:scale-[1.02] transition-transform">
                 <img
                   src="/images/medical-team.png"
+                  loading="lazy"
+                  decoding="async"
                   className="w-11 h-11 sm:w-12 sm:h-12 object-contain shrink-0 group-hover:scale-110 transition-transform duration-300"
                   alt={isAr ? 'أطباء معتمدون' : 'Médecins Agréés'}
                 />
@@ -1089,6 +1099,8 @@ export default function LandingPage({ onOpenLogin }) {
               <div className="p-2 sm:p-3 flex items-center justify-center gap-3 group hover:scale-[1.02] transition-transform pt-4 md:pt-2">
                 <img
                   src="/images/rdv.png"
+                  loading="lazy"
+                  decoding="async"
                   className="w-11 h-11 sm:w-12 sm:h-12 object-contain shrink-0 group-hover:scale-110 transition-transform duration-300"
                   alt={isAr ? 'مواعيد مؤكدة' : 'RDV Confirmés'}
                 />
@@ -1107,6 +1119,8 @@ export default function LandingPage({ onOpenLogin }) {
               <div className="p-2 sm:p-3 flex items-center justify-center gap-3 group hover:scale-[1.02] transition-transform">
                 <img
                   src="/images/clock.png"
+                  loading="lazy"
+                  decoding="async"
                   className="w-11 h-11 sm:w-12 sm:h-12 object-contain shrink-0 group-hover:scale-110 transition-transform duration-300"
                   alt={isAr ? 'حجز مواعيد 24س/7أ' : 'Prise de RDV 24h/7j'}
                 />
@@ -1125,6 +1139,8 @@ export default function LandingPage({ onOpenLogin }) {
               <div className="p-2 sm:p-3 flex items-center justify-center gap-3 group hover:scale-[1.02] transition-transform pt-4 md:pt-2">
                 <img
                   src="/images/rating.png"
+                  loading="lazy"
+                  decoding="async"
                   className="w-11 h-11 sm:w-12 sm:h-12 object-contain shrink-0 group-hover:scale-110 transition-transform duration-300"
                   alt={isAr ? 'نسبة رضا المرضى' : 'Satisfaction Patients'}
                 />
@@ -1203,6 +1219,8 @@ export default function LandingPage({ onOpenLogin }) {
                 <img
                   src="/images/doctor_selim.jpg"
                   alt={isAr ? 'فضاء الممارس Maw2idi' : 'Espace Soignant Maw2idi'}
+                  loading="lazy"
+                  decoding="async"
                   className="w-full h-full object-cover rounded-[32px]"
                 />
               </div>

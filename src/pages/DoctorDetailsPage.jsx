@@ -1313,6 +1313,8 @@ export default function DoctorDetailsPage({ onOpenLogin }) {
                   src={resolveAvatar(doctor.avatar)}
                   onError={(e) => { e.currentTarget.src = '/images/doctor_selim.jpg'; }}
                   alt={docName}
+                  fetchPriority="high"
+                  decoding="async"
                   className={`w-full h-full object-cover object-top sm:object-center ${isDoctorOwner ? 'group-hover:scale-101' : ''} transition-all`}
                 />
 
