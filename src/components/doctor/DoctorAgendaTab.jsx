@@ -448,10 +448,11 @@ const getDefaultSlotsForDate = (dateObj, schedule = null, dbAppointments = [], d
     const normTime = time.replace(/^0/, '');
     const apt = dbAppointments.find(a => {
       if (a.status === 'CANCELLED') return false;
-      const aIso = a.dateIso || (a.date && /^\d{4}-\d{2}-\d{2}$/.test(a.date) ? a.date : null);
+      const aIso = normalizeToIso(a.dateIso || (a.date && /^\d{4}-\d{2}-\d{2}/.test(String(a.date)) ? a.date : null));
       if (aIso && aIso !== dateKey) return false;
       const aDateObj = parseAppointmentToDate(a);
-      if (aDateObj && getISODate(aDateObj) !== dateKey) return false;
+      if (!aIso && aDateObj && getISODate(aDateObj) !== dateKey) return false;
+      if (!aIso && !aDateObj) return false;
 
       const aTime = (a.time || '').replace('h', ':').trim();
       const aTimeNorm = aTime.replace(/^0/, '');
@@ -505,27 +506,38 @@ const getDefaultSlotsForDate = (dateObj, schedule = null, dbAppointments = [], d
 
   // Also append any dbAppointments that didn't match a standard 30-min slot time (e.g. 12:13, 15:57)
   const mappedAptIds = new Set(mapped.map(m => m.id).filter(Boolean));
-  (dbAppointments || []).forEach(apt => {
+  const mappedTimePatients = new Set(
+    mapped
+      .filter(m => m.status !== 'FREE' && m.patient)
+      .map(m => `${(m.time || '').replace(/^0/, '')}|${String(m.patient).toLowerCase().trim()}`)
+  );
+  (dbAppointments || []).forEach((apt, idx) => {
     if (apt.status === 'CANCELLED') return;
-    const aIso = apt.dateIso || (apt.date && /^\d{4}-\d{2}-\d{2}$/.test(apt.date) ? apt.date : null);
+    const aIso = normalizeToIso(apt.dateIso || (apt.date && /^\d{4}-\d{2}-\d{2}/.test(String(apt.date)) ? apt.date : null));
     const aDateObj = parseAppointmentToDate(apt);
-    const matchesDate = (aIso && aIso === dateKey) || (aDateObj && getISODate(aDateObj) === dateKey);
-    if (matchesDate && apt.id && !mappedAptIds.has(apt.id)) {
+    const matchesDate = (aIso && aIso === dateKey) || (!aIso && aDateObj && getISODate(aDateObj) === dateKey);
+    const cleanTime = (apt.time || '09:00').replace('h', ':').trim();
+    const pName = apt.patientName || apt.patient || 'Patient';
+    const tpKey = `${cleanTime.replace(/^0/, '')}|${String(pName).toLowerCase().trim()}`;
+    const alreadyMapped = (apt.id && mappedAptIds.has(apt.id)) || mappedTimePatients.has(tpKey);
+    if (matchesDate && !alreadyMapped) {
       const isAptCompleted = (apt.status === 'COMPLETED' || apt.status === 'TERMINE') ||
         (apt.patientName && completedNames.has(apt.patientName.toLowerCase().trim())) ||
         (apt.patient && completedNames.has(apt.patient.toLowerCase().trim())) ||
         (apt.id && completedIds.has(String(apt.id)));
 
+      const slotId = apt.id || `apt-extra-${dateKey}-${cleanTime}-${idx}`;
       mapped.push({
-        id: apt.id,
-        time: (apt.time || '09:00').replace('h', ':').trim(),
+        id: slotId,
+        time: cleanTime,
         status: apt.status === 'BLOCKED' ? 'BLOCKED' : (isAptCompleted ? 'COMPLETED' : 'OCCUPIED'),
-        patient: apt.patientName || apt.patient || 'Patient',
+        patient: pName,
         phone: apt.patientPhone || '—',
         act: apt.motif || apt.type || 'Consultation Cardiologie',
         appointment: apt
       });
-      mappedAptIds.add(apt.id);
+      mappedAptIds.add(slotId);
+      mappedTimePatients.add(tpKey);
     }
   });
 
@@ -665,9 +677,11 @@ export default function DoctorAgendaTab({
       }
       if (aptRes?.data && Array.isArray(aptRes.data)) {
         setDbAppointments(aptRes.data);
+        setSlotsMap({});
       }
       if (allAptsRes?.data && Array.isArray(allAptsRes.data)) {
         setAllDoctorAppointments(allAptsRes.data);
+        setSlotsMap({});
       }
     } catch (err) {
       console.warn('Doctor agenda load notice:', err);
@@ -1547,29 +1561,20 @@ export default function DoctorAgendaTab({
       };
 
       const res = await api.createAppointment(payload);
-      const savedData = res?.data || payload;
+      const savedData = {
+        ...payload,
+        ...(res?.data || {}),
+        id: res?.data?.id || payload.id || `apt-${Date.now()}`,
+        dateIso: res?.data?.dateIso || currentDateKey,
+        status: res?.data?.status || 'CONFIRMED'
+      };
 
       setBookingSuccessData(savedData);
 
-      // Optimistic update of local slots
-      const updated = slots.map(s => {
-        if (s.time === modalNewRdvSlot) {
-          return {
-            ...s,
-            id: savedData.id || s.id,
-            appointment: savedData,
-            status: 'OCCUPIED',
-            patient: patientFinalName,
-            phone: patientFinalPhone,
-            act: payload.motif
-          };
-        }
-        return s;
-      });
-      setSlotsMap(prev => ({
-        ...prev,
-        [currentDateKey]: updated
-      }));
+      // Optimistically reflect the newly booked appointment in both daily and full appointment lists
+      setDbAppointments(prev => [savedData, ...(prev || []).filter(a => a.id !== savedData.id)]);
+      setAllDoctorAppointments(prev => [savedData, ...(prev || []).filter(a => a.id !== savedData.id)]);
+      setSlotsMap({});
 
       await fetchSlotsAndAppointments();
 
@@ -1579,35 +1584,23 @@ export default function DoctorAgendaTab({
     } catch (err) {
       console.warn('Doctor book slot fallback:', err);
       const fallbackPayload = {
+        id: `apt-${Date.now()}`,
         doctorId,
         doctorName: activeDocName,
         date: getDMY(selectedDate),
         dateIso: currentDateKey,
         time: modalNewRdvSlot,
         type: consultType,
+        status: 'CONFIRMED',
+        motif: consultType === 'TELECONSULTATION' ? 'Téléconsultation' : (newPatientAct || 'Consultation Cabinet'),
         patientName: patientFinalName,
         patientPhone: patientFinalPhone,
         ticketNumber: `N° ${String(slots.filter(s => s.status === 'OCCUPIED').length + 1).padStart(2, '0')}`
       };
       setBookingSuccessData(fallbackPayload);
-      const updated = slots.map(s => {
-        if (s.time === modalNewRdvSlot) {
-          return {
-            ...s,
-            id: fallbackPayload.id || `apt-${Date.now()}`,
-            appointment: fallbackPayload,
-            status: 'OCCUPIED',
-            patient: patientFinalName,
-            phone: patientFinalPhone,
-            act: consultType === 'TELECONSULTATION' ? 'Téléconsultation' : 'Consultation Cabinet'
-          };
-        }
-        return s;
-      });
-      setSlotsMap(prev => ({
-        ...prev,
-        [currentDateKey]: updated
-      }));
+      setDbAppointments(prev => [fallbackPayload, ...(prev || [])]);
+      setAllDoctorAppointments(prev => [fallbackPayload, ...(prev || [])]);
+      setSlotsMap({});
     } finally {
       setBookingSubmitting(false);
     }
@@ -1703,6 +1696,26 @@ export default function DoctorAgendaTab({
       } catch (err) {}
       return updated;
     });
+
+    const normalizedWalkInApt = {
+      id: aptId,
+      doctorId: doctorId || 'doc-1',
+      doctorName: activeDocName,
+      date: todayDmy,
+      dateIso: todayIso,
+      time: currentTimeStr,
+      patientName: patientFinalName,
+      patientPhone: patientFinalPhone,
+      motif: newPatientAct || 'Consultation Cabinet (Pointage)',
+      type: consultType,
+      status: 'EN_ATTENTE',
+      source: 'POINTAGE_COMPTOIR',
+      createdAt: createdApt?.createdAt || new Date().toISOString(),
+      ...(createdApt || {})
+    };
+    setDbAppointments(prev => [normalizedWalkInApt, ...(prev || []).filter(a => a.id !== aptId)]);
+    setAllDoctorAppointments(prev => [normalizedWalkInApt, ...(prev || []).filter(a => a.id !== aptId)]);
+    setSlotsMap({});
 
     await fetchSlotsAndAppointments();
     setBookingSubmitting(false);

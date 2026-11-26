@@ -403,6 +403,7 @@ export default function DoctorDashboardPage() {
         }>
         {activeTab === 'agenda' && (
           <DoctorAgendaTab
+            key={`agenda-${doctorId}`}
             queue={appointments}
             currentPatient={currentPatient}
             onCallPatient={handleCallSpecificPatient}
