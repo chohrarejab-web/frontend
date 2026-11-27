@@ -38,11 +38,6 @@ button, a, [role="button"], input, select {
   touch-action: manipulation;
 }
 
-header, nav {
-  transform: translateZ(0);
-  will-change: transform;
-}
-
 .gpu-sheet {
   transform: translateZ(0);
   will-change: transform, opacity;

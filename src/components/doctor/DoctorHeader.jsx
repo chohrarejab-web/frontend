@@ -601,17 +601,19 @@ export default function DoctorHeader({
             </button>
           )}
 
-          {/* Red Logout Button — icon-only on mobile app to keep header single-row */}
-          <button
-            type="button"
-            onClick={handleLogout}
-            id="doctor-header-logout-btn"
-            className={`bg-[#DC2626] hover:bg-[#B91C1C] active:scale-95 text-white font-extrabold text-xs ${mobileMode ? 'p-2' : 'px-2.5 sm:px-3 py-1.5'} rounded-xl flex items-center gap-1.5 transition-all cursor-pointer shadow-xs shrink-0 whitespace-nowrap`}
-            title={t('doc_logout', "Déconnexion de l'espace praticien")}
-          >
-            <LogOut className="w-3.5 h-3.5 shrink-0" />
-            {!mobileMode && <span className="inline font-bold tracking-tight">{t('doc_logout', 'Déconnexion')}</span>}
-          </button>
+          {/* Red Logout Button — Desktop web only (in mobile app, Logout lives in Mon Profil / حسابي) */}
+          {!mobileMode && (
+            <button
+              type="button"
+              onClick={handleLogout}
+              id="doctor-header-logout-btn"
+              className="bg-[#DC2626] hover:bg-[#B91C1C] active:scale-95 text-white font-extrabold text-xs px-2.5 sm:px-3 py-1.5 rounded-xl flex items-center gap-1.5 transition-all cursor-pointer shadow-xs shrink-0 whitespace-nowrap"
+              title={t('doc_logout', "Déconnexion de l'espace praticien")}
+            >
+              <LogOut className="w-3.5 h-3.5 shrink-0" />
+              <span className="inline font-bold tracking-tight">{t('doc_logout', 'Déconnexion')}</span>
+            </button>
+          )}
 
         </div>
 

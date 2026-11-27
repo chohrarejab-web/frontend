@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Camera, Save, LogOut, Phone, MapPin, DollarSign, Shield, Video, Check, ChevronRight } from 'lucide-react';
 import api from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
@@ -118,9 +119,9 @@ export default function MobileDoctorProfileSheet({
     }
   };
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-[100] flex items-end justify-center bg-slate-950/55"
+      className="fixed inset-0 z-[9999] flex items-end justify-center bg-slate-950/55"
       onClick={onClose}
       dir={isAr ? 'rtl' : 'ltr'}
     >
@@ -315,6 +316,7 @@ export default function MobileDoctorProfileSheet({
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
