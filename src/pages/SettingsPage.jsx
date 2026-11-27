@@ -10,6 +10,7 @@ import { useLanguage } from '../context/LanguageContext';
 import { GOVERNORATES_AR, TUNISIAN_GOVERNORATES } from '../data/tunisiaData';
 import ToastNotification from '../components/common/ToastNotification';
 import TunisianPhoneInput from '../components/common/TunisianPhoneInput';
+import { isMobileApp } from '../utils/mobilePlatform';
 
 // Preset avatar options pour le patient (utilisateur simple)
 const getPresetAvatars = (isAr) => [
@@ -275,57 +276,77 @@ export default function SettingsPage({ onOpenLogin, onOpenSignup }) {
   }
 
   const presetAvatarsList = getPresetAvatars(isAr);
+  const mobileMode = isMobileApp();
 
   return (
-    <div className="min-h-screen bg-[#edf7f9] dark:bg-[#071120] text-slate-800 dark:text-slate-100 py-6 sm:py-10 transition-colors duration-300" dir={isRtl ? "rtl" : "ltr"}>
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div className={`min-h-screen bg-[#edf7f9] dark:bg-[#071120] text-slate-800 dark:text-slate-100 ${mobileMode ? 'py-4 pb-24' : 'py-6 sm:py-10'}`} dir={isRtl ? "rtl" : "ltr"}>
+      <div className="max-w-5xl mx-auto px-3 sm:px-6 lg:px-8">
         
-        {/* Top Navigation Breadcrumb & Back Button */}
-        <div className="flex items-center justify-between mb-6">
-          <Link
-            to="/patient/dashboard"
-            className="inline-flex items-center gap-2 text-xs sm:text-sm font-bold text-teal-700 dark:text-teal-400 bg-white/80 dark:bg-slate-800/80 px-3.5 py-2 rounded-xl shadow-xs border border-teal-100 dark:border-slate-700 hover:bg-white dark:hover:bg-slate-800 transition-all hover:scale-102 active:scale-98"
-          >
-            <ArrowLeft className="w-4 h-4 rtl:rotate-180" />
-            <span>{isAr ? "العودة إلى فضائي الصحي" : "Retour à mon espace santé"}</span>
-          </Link>
+        {/* Top Navigation Breadcrumb & Back Button (Desktop web only) */}
+        {!mobileMode && (
+          <div className="flex items-center justify-between mb-6">
+            <Link
+              to="/patient/dashboard"
+              className="inline-flex items-center gap-2 text-xs sm:text-sm font-bold text-teal-700 dark:text-teal-400 bg-white/80 dark:bg-slate-800/80 px-3.5 py-2 rounded-xl shadow-xs border border-teal-100 dark:border-slate-700 hover:bg-white dark:hover:bg-slate-800 transition-colors active:scale-98"
+            >
+              <ArrowLeft className="w-4 h-4 rtl:rotate-180" />
+              <span>{isAr ? "العودة إلى فضائي الصحي" : "Retour à mon espace santé"}</span>
+            </Link>
 
-          <span className="text-xs text-slate-500 font-semibold flex items-center gap-1.5">
-            <ShieldCheck className="w-4 h-4 text-emerald-600" />
-            {isAr ? 'بيانات مشفرة ومعتمدة من INPDP' : 'Données chiffrées & certifiées INPDP'}
-          </span>
-        </div>
+            <span className="text-xs text-slate-500 font-semibold flex items-center gap-1.5">
+              <ShieldCheck className="w-4 h-4 text-emerald-600" />
+              {isAr ? 'بيانات مشفرة ومعتمدة من INPDP' : 'Données chiffrées & certifiées INPDP'}
+            </span>
+          </div>
+        )}
 
-        {/* Page Title & Hero Header */}
-        <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-8 shadow-xl shadow-teal-900/5 border border-teal-100/70 dark:border-slate-800 mb-8 relative overflow-hidden">
-          <div className="absolute top-0 right-0 rtl:right-auto rtl:left-0 w-80 h-80 bg-teal-500/5 rounded-full blur-3xl -mr-20 rtl:-mr-0 rtl:-ml-20 -mt-20 pointer-events-none"></div>
-          
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 relative z-10">
+        {/* Page Title & Hero Header (Compact card on mobile app) */}
+        {mobileMode ? (
+          <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 shadow-xs border border-slate-100 dark:border-slate-800 mb-4 flex items-center justify-between">
             <div>
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-50 dark:bg-teal-950/60 border border-teal-200/60 dark:border-teal-800/60 text-teal-800 dark:text-teal-300 text-xs font-bold mb-2">
-                <Sparkles className="w-3.5 h-3.5 text-teal-600" />
-                <span>{isAr ? "الفضاء الشخصي والأمان" : "Espace Personnel & Sécurité"}</span>
-              </div>
-              <h1 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight">
-                {isAr ? "إعدادات الحساب" : "Paramètres du Compte"}
+              <h1 className="text-lg font-black text-slate-900 dark:text-white tracking-tight">
+                {isAr ? 'حسابي' : 'Mon Profil'}
               </h1>
-              <p className="text-slate-500 dark:text-slate-400 text-xs sm:text-sm mt-1 max-w-xl">
-                {isAr 
-                  ? "قم بتعديل معلوماتك الشخصية، صورتك وتأمين الوصول إلى ملفك الطبي على منصة صحتنا." 
-                  : "Modifiez vos informations personnelles, votre photo de profil et sécurisez l'accès à votre dossier médical SahaTN."}
+              <p className="text-slate-500 dark:text-slate-400 text-xs mt-0.5">
+                {user?.email || user?.name}
               </p>
             </div>
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 text-[11px] font-bold">
+              <ShieldCheck className="w-3.5 h-3.5" />
+              {isAr ? 'آمن' : 'Sécurisé'}
+            </span>
+          </div>
+        ) : (
+          <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-8 shadow-xl shadow-teal-900/5 border border-teal-100/70 dark:border-slate-800 mb-8 relative overflow-hidden">
+            <div className="absolute top-0 right-0 rtl:right-auto rtl:left-0 w-80 h-80 bg-teal-500/5 rounded-full blur-3xl -mr-20 rtl:-mr-0 rtl:-ml-20 -mt-20 pointer-events-none"></div>
+            
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 relative z-10">
+              <div>
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-50 dark:bg-teal-950/60 border border-teal-200/60 dark:border-teal-800/60 text-teal-800 dark:text-teal-300 text-xs font-bold mb-2">
+                  <Sparkles className="w-3.5 h-3.5 text-teal-600" />
+                  <span>{isAr ? "الفضاء الشخصي والأمان" : "Espace Personnel & Sécurité"}</span>
+                </div>
+                <h1 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight">
+                  {isAr ? "إعدادات الحساب" : "Paramètres du Compte"}
+                </h1>
+                <p className="text-slate-500 dark:text-slate-400 text-xs sm:text-sm mt-1 max-w-xl">
+                  {isAr 
+                    ? "قم بتعديل معلوماتك الشخصية، صورتك وتأمين الوصول إلى ملفك الطبي على منصة صحتنا." 
+                    : "Modifiez vos informations personnelles, votre photo de profil et sécurisez l'accès à votre dossier médical SahaTN."}
+                </p>
+              </div>
 
-            <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800/60 px-4 py-2.5 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 text-xs shrink-0">
-              <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></div>
-              <span className="font-bold text-slate-700 dark:text-slate-200">
-                {user?.role === 'SUPER_ADMIN' 
-                  ? (isAr ? 'حساب مشرف عام' : 'Compte Super Admin') 
-                  : (isAr ? 'حساب مريض موثق' : 'Compte Patient Vérifié')}
-              </span>
+              <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800/60 px-4 py-2.5 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 text-xs shrink-0">
+                <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></div>
+                <span className="font-bold text-slate-700 dark:text-slate-200">
+                  {user?.role === 'SUPER_ADMIN' 
+                    ? (isAr ? 'حساب مشرف عام' : 'Compte Super Admin') 
+                    : (isAr ? 'حساب مريض موثق' : 'Compte Patient Vérifié')}
+                </span>
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
         {/* Form Container */}
         <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-12 gap-8">

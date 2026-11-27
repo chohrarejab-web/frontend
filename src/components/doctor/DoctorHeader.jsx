@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, lazy, Suspense } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { Stethoscope, Bell, LogOut, Volume2, Camera, Edit2, Home, X } from 'lucide-react';
 import DayNightToggle from '../common/DayNightToggle';
@@ -6,8 +6,10 @@ import { isMobileApp } from '../../utils/mobilePlatform';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { useSocket } from '../../context/SocketContext';
-import DoctorProfileModal from './DoctorProfileModal';
+import MobileDoctorProfileSheet from './MobileDoctorProfileSheet';
 import api from '../../services/api';
+
+const DoctorProfileModal = lazy(() => import('./DoctorProfileModal'));
 import {
   getNotificationTitle,
   getNotificationMessage,
@@ -217,6 +219,7 @@ export default function DoctorHeader({
 
   // Doctor Profile modal state
   const [showProfileModal, setShowProfileModal] = useState(false);
+  const [showAdvancedProfileModal, setShowAdvancedProfileModal] = useState(false);
   const location = useLocation();
 
   useEffect(() => {
@@ -650,13 +653,40 @@ export default function DoctorHeader({
 
       </div>
 
-      {/* ════════ DOCTOR PROFILE & EDIT MODAL ════════ */}
-      <DoctorProfileModal
-        isOpen={showProfileModal}
-        onClose={() => setShowProfileModal(false)}
-        doctorId={doctorId || user?.doctorId || 'doc-1'}
-        onDoctorUpdated={handleDoctorUpdated}
-      />
+      {/* ════════ DOCTOR PROFILE & EDIT MODAL (Simple sheet on mobile, full modal on desktop/advanced) ════════ */}
+      {mobileMode ? (
+        <>
+          <MobileDoctorProfileSheet
+            isOpen={showProfileModal}
+            onClose={() => setShowProfileModal(false)}
+            doctorId={doctorId || user?.doctorId || 'doc-1'}
+            onDoctorUpdated={handleDoctorUpdated}
+            onOpenAdvanced={() => setShowAdvancedProfileModal(true)}
+            onLogout={handleLogout}
+          />
+          {showAdvancedProfileModal && (
+            <Suspense fallback={null}>
+              <DoctorProfileModal
+                isOpen={showAdvancedProfileModal}
+                onClose={() => setShowAdvancedProfileModal(false)}
+                doctorId={doctorId || user?.doctorId || 'doc-1'}
+                onDoctorUpdated={handleDoctorUpdated}
+              />
+            </Suspense>
+          )}
+        </>
+      ) : (
+        showProfileModal && (
+          <Suspense fallback={null}>
+            <DoctorProfileModal
+              isOpen={showProfileModal}
+              onClose={() => setShowProfileModal(false)}
+              doctorId={doctorId || user?.doctorId || 'doc-1'}
+              onDoctorUpdated={handleDoctorUpdated}
+            />
+          </Suspense>
+        )
+      )}
     </header>
   );
 }
