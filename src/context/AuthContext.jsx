@@ -149,7 +149,37 @@ export const AuthProvider = ({ children }) => {
     throw new Error(res.message || 'Échec de mise à jour du profil');
   };
 
+  // Bridge auth session to Flutter native shell for FCM push token registration
+  useEffect(() => {
+    try {
+      if (typeof window !== 'undefined' && window.Maw2idiAuth && typeof window.Maw2idiAuth.postMessage === 'function') {
+        if (user && token) {
+          window.Maw2idiAuth.postMessage(JSON.stringify({
+            action: 'LOGIN',
+            token,
+            userId: user.uuid || user.id || null,
+            role: user.role || 'PATIENT',
+            doctorId: user.doctorId || user.doctor_id || null,
+            lang: localStorage.getItem('sahatn_lang') || 'fr'
+          }));
+        }
+      }
+    } catch {
+      // Ignore outside Flutter WebView
+    }
+  }, [user, token]);
+
   const logout = useCallback(async () => {
+    try {
+      if (typeof window !== 'undefined' && window.Maw2idiAuth && typeof window.Maw2idiAuth.postMessage === 'function') {
+        window.Maw2idiAuth.postMessage(JSON.stringify({
+          action: 'LOGOUT',
+          token: token || null
+        }));
+      }
+    } catch {
+      // ignore
+    }
     try {
       if (token) await api.logout();
     } catch (e) {

@@ -1,23 +1,31 @@
 import React, { useRef } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useLanguage } from '../../context/LanguageContext';
-import { ENABLE_REVIEWS, DOCTOR_COMPANION_MODE, DOCTOR_COMPANION_TABS } from '../../config/features';
+import { ENABLE_REVIEWS } from '../../config/features';
+import { isMobileApp, MOBILE_DOCTOR_TABS } from '../../utils/mobilePlatform';
 
 export default function DoctorTabsNav({ activeTab, onSelectTab, onOpenTour }) {
   const scrollRef = useRef(null);
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
+  const mobileMode = isMobileApp();
 
   const allTabs = [
     { id: 'agenda', icon: '📅', label: t('doc_tab_agenda', 'Agenda & File d\'Attente') },
+    { id: 'caisse', icon: '💳', label: t('doc_tab_caisse', 'Caisse & Recettes') },
+    { id: 'whatsapp', icon: '💬', label: t('doc_tab_whatsapp', 'WhatsApp & SMS') },
     { id: 'retard', icon: '⏱️', label: t('doc_tab_retard', 'Retard Cabinet') },
+    { id: 'ehr', icon: '📁', label: t('doc_tab_ehr', 'Dossier Médical (EHR)') },
+    { id: 'ordonnance', icon: '💊', label: t('doc_tab_ordonnance', 'Ordonnances PCT') },
+    { id: 'cnam', icon: '🏛️', label: t('doc_tab_cnam', 'Bulletin CNAM C1') },
+    { id: 'liaison', icon: '📨', label: t('doc_tab_liaison', 'Lettre de Liaison') },
+    { id: 'cabinet', icon: '🏢', label: t('doc_tab_cabinet', 'Mon Cabinet') },
+    { id: 'abonnement', icon: '🏦', label: t('doc_tab_subscription', 'Abonnement & Paiement') },
+    { id: 'reputation', icon: '⭐', label: t('doc_tab_reputation', 'E-Réputation & Avis') },
     { id: 'teleconsult', icon: '🎥', label: t('doc_tab_teleconsult', 'Salon Téléconsultation'), isHighlight: true }
   ];
 
-  const tabs = allTabs.filter((tab) => {
-    if (!ENABLE_REVIEWS && tab.id === 'reputation') return false;
-    if (DOCTOR_COMPANION_MODE && !DOCTOR_COMPANION_TABS.includes(tab.id)) return false;
-    return true;
-  });
+  const baseTabs = ENABLE_REVIEWS ? allTabs : allTabs.filter(t => t.id !== 'reputation');
+  const tabs = mobileMode ? baseTabs.filter(tab => MOBILE_DOCTOR_TABS.includes(tab.id)) : baseTabs;
 
   const handleScrollLeft = () => {
     if (scrollRef.current) {
@@ -31,9 +39,42 @@ export default function DoctorTabsNav({ activeTab, onSelectTab, onOpenTour }) {
     }
   };
 
+  const mobileLabels = {
+    agenda: lang === 'ar' ? 'الجدول' : 'Agenda',
+    retard: lang === 'ar' ? 'التأخير' : 'Retard',
+    teleconsult: lang === 'ar' ? 'فيديو' : 'Téléconsult'
+  };
+
+  if (mobileMode) {
+    return (
+      <div className="w-full grid grid-cols-3 gap-1.5 bg-white dark:bg-[#0c162d] p-1.5 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-xs select-none">
+        {tabs.map((tab) => {
+          const isActive = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => onSelectTab(tab.id)}
+              className={`px-2 py-2.5 rounded-xl text-xs font-extrabold flex items-center justify-center gap-1.5 transition-all cursor-pointer whitespace-nowrap ${
+                isActive
+                  ? 'bg-[#00A896] text-white shadow-sm shadow-teal-500/20'
+                  : tab.isHighlight
+                    ? 'bg-teal-50/70 dark:bg-teal-950/40 text-[#00A896] dark:text-teal-300 border border-teal-200/70 dark:border-teal-900'
+                    : 'bg-slate-50/70 dark:bg-slate-900/60 text-slate-600 dark:text-slate-300'
+              }`}
+            >
+              <span>{tab.icon}</span>
+              <span className="truncate">{mobileLabels[tab.id] || tab.label}</span>
+            </button>
+          );
+        })}
+      </div>
+    );
+  }
+
   return (
     <div className="w-full flex items-center gap-1.5 sm:gap-2.5 bg-white dark:bg-[#0c162d] p-2 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-xs select-none">
-      
+
       {/* Scroll Left Button */}
       <button
         type="button"
@@ -55,13 +96,12 @@ export default function DoctorTabsNav({ activeTab, onSelectTab, onOpenTour }) {
             <button
               key={tab.id}
               onClick={() => onSelectTab(tab.id)}
-              className={`px-4 py-2.5 rounded-2xl text-xs sm:text-sm font-extrabold flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap shrink-0 ${
-                isActive
-                  ? 'bg-[#00A896] text-white shadow-md shadow-teal-500/20 transform scale-[1.01]'
-                  : tab.isHighlight
+              className={`px-4 py-2.5 rounded-2xl text-xs sm:text-sm font-extrabold flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap shrink-0 ${isActive
+                ? 'bg-[#00A896] text-white shadow-md shadow-teal-500/20 transform scale-[1.01]'
+                : tab.isHighlight
                   ? 'bg-teal-50 dark:bg-teal-950/60 text-[#00A896] dark:text-teal-300 border border-teal-200/80 dark:border-teal-900 hover:bg-teal-100/60'
                   : 'bg-white dark:bg-[#0c162d] text-slate-600 dark:text-slate-300 border border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/80 hover:text-slate-900'
-              }`}
+                }`}
             >
               <span>{tab.icon}</span>
               <span>{tab.label}</span>

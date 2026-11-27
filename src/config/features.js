@@ -1,9 +1,9 @@
 /**
- * Configuration des fonctionnalités Maw2idi / SahaTN (Feature Flags)
+ * Configuration des fonctionnalités SahaTN (Feature Flags)
+ * 
+ * Pour réactiver la notation et les avis patients sur l'ensemble de la plateforme
+ * (fiche praticien, recherche soignants, tableau de bord médecin),
+ * il suffit de passer ENABLE_REVIEWS à true.
  */
 export const ENABLE_REVIEWS = false;
 
-// Patient-first + Lightweight Doctor Companion mode (excludes Admin console & heavy desktop-only doctor modules)
-export const ENABLE_ADMIN_CONSOLE = false;
-export const DOCTOR_COMPANION_MODE = true;
-export const DOCTOR_COMPANION_TABS = ['agenda', 'retard', 'teleconsult'];

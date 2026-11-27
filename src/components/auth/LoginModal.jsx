@@ -207,14 +207,14 @@ export default function LoginModal({
     >
       <div
         id="auth-modal-card"
-        className="relative w-full max-w-4xl max-h-[92vh] bg-white dark:bg-[#0c1a2e] rounded-3xl sm:rounded-[32px] shadow-2xl border border-teal-100/80 dark:border-slate-800 overflow-hidden flex flex-col md:flex-row min-h-[640px] transition-all text-slate-800 dark:text-slate-100"
+        className="relative w-full max-w-4xl max-h-[92vh] bg-white dark:bg-[#0c1a2e] rounded-3xl sm:rounded-[32px] shadow-2xl border border-teal-100/80 dark:border-slate-800 overflow-hidden flex flex-col md:flex-row md:min-h-[640px] transition-all text-slate-800 dark:text-slate-100"
         style={{ direction: 'ltr' }}
       >
-        {/* Universal Close Button */}
+        {/* Desktop Floating Close Button (Mobile uses inline header close button below) */}
         <button
           onClick={handleClose}
           type="button"
-          className="absolute top-3.5 right-3.5 sm:top-4 sm:right-4 rtl:right-auto rtl:left-3.5 sm:rtl:left-4 z-40 text-slate-700 dark:text-slate-200 hover:text-rose-600 dark:hover:text-rose-400 bg-white/90 dark:bg-slate-800/90 hover:bg-white dark:hover:bg-slate-700 border border-slate-200/90 dark:border-slate-700 shadow-md w-9 h-9 sm:w-8 sm:h-8 rounded-full flex items-center justify-center font-bold text-sm transition-all cursor-pointer hover:scale-105 active:scale-95"
+          className="hidden md:flex absolute top-4 right-4 rtl:right-auto rtl:left-4 z-40 text-slate-700 dark:text-slate-200 hover:text-rose-600 dark:hover:text-rose-400 bg-white/90 dark:bg-slate-800/90 hover:bg-white dark:hover:bg-slate-700 border border-slate-200/90 dark:border-slate-700 shadow-md w-8 h-8 rounded-full items-center justify-center font-bold text-sm transition-all cursor-pointer hover:scale-105 active:scale-95"
           title="Fermer"
         >
           ✕
@@ -231,25 +231,36 @@ export default function LoginModal({
           }`}
           dir={isRtl ? 'rtl' : 'ltr'}
         >
-          {/* Mobile Segmented Mode Switcher (< md) */}
-          <div className="flex md:hidden bg-slate-100 dark:bg-slate-900 p-1 rounded-2xl mb-4 border border-slate-200 dark:border-slate-800">
+          {/* Mobile Top Bar: Segmented Mode Switcher + Clean Inline Close Button (< md) */}
+          <div className="flex md:hidden items-center gap-2.5 mb-5">
+            <div className="flex-1 flex bg-slate-100 dark:bg-slate-900 p-1 rounded-2xl border border-slate-200 dark:border-slate-800">
+              <button
+                type="button"
+                onClick={() => switchMode('login')}
+                className={`flex-1 py-2 text-xs font-black rounded-xl transition-all cursor-pointer ${
+                  !isSignup ? 'bg-[#00A896] text-white shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                {lang === 'ar' ? 'تسجيل الدخول' : 'Connexion'}
+              </button>
+              <button
+                type="button"
+                onClick={() => switchMode('signup')}
+                className={`flex-1 py-2 text-xs font-black rounded-xl transition-all cursor-pointer ${
+                  isSignup ? 'bg-[#00A896] text-white shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                {lang === 'ar' ? 'إنشاء حساب جديد' : 'Inscription'}
+              </button>
+            </div>
             <button
+              onClick={handleClose}
               type="button"
-              onClick={() => switchMode('login')}
-              className={`flex-1 py-2 text-xs font-black rounded-xl transition-all cursor-pointer ${
-                !isSignup ? 'bg-[#00A896] text-white shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-              }`}
+              className="w-9 h-9 shrink-0 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-rose-500 border border-slate-200 dark:border-slate-700 flex items-center justify-center font-bold text-sm cursor-pointer active:scale-95"
+              title="Fermer"
+              aria-label="Fermer"
             >
-              {lang === 'ar' ? 'تسجيل الدخول' : 'Connexion'}
-            </button>
-            <button
-              type="button"
-              onClick={() => switchMode('signup')}
-              className={`flex-1 py-2 text-xs font-black rounded-xl transition-all cursor-pointer ${
-                isSignup ? 'bg-[#00A896] text-white shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-              }`}
-            >
-              {lang === 'ar' ? 'إنشاء حساب جديد' : 'Inscription'}
+              ✕
             </button>
           </div>
 
@@ -339,7 +350,7 @@ export default function LoginModal({
                     </div>
                     <div className="relative">
                       <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
-                        <img src="/images/lock.png" alt="Mot de passe" className="w-4 h-4 opacity-70" />
+                        <img src="/images/lock.png" alt="Mot de passe" className="w-4 h-4 opacity-75 dark:invert dark:brightness-90" />
                       </div>
                       <input
                         type={showPass ? 'text' : 'password'}

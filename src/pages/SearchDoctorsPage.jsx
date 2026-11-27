@@ -592,12 +592,14 @@ export default function SearchDoctorsPage({ onOpenLogin }) {
     });
   };
 
-  // Booking Modal Trigger
+  // Booking Modal Trigger (with instant live availability pre-check)
   const handleOpenBooking = (doc, slotTime, dayFullStr, dateIso) => {
+    const targetSlot = slotTime || '10:00';
+    const targetIso = dateIso || new Date().toISOString().split('T')[0];
     setBookingModalDoc(doc);
-    setBookingSlot(slotTime || '10:00');
+    setBookingSlot(targetSlot);
     setBookingDateStr(dayFullStr || "Demain");
-    setBookingDateIso(dateIso || new Date().toISOString().split('T')[0]);
+    setBookingDateIso(targetIso);
     setBookingSuccessData(null);
     setBookingError('');
     setBeneficiaryType('self');
@@ -606,6 +608,26 @@ export default function SearchDoctorsPage({ onOpenLogin }) {
     setCnamCarnet('');
     setBookingEmail(user?.email || '');
     setConsultType('CABINET');
+
+    const docId = doc?.id || doc?.uuid;
+    if (docId && targetIso && targetSlot) {
+      api.getAvailableSlots(docId, targetIso)
+        .then((res) => {
+          const data = res?.data || res || {};
+          const booked = Array.isArray(data.bookedSlots) ? data.bookedSlots : [];
+          const blocked = Array.isArray(data.blockedSlots) ? data.blockedSlots : [];
+          const available = Array.isArray(data.availableSlots) ? data.availableSlots : null;
+          const isTaken = booked.includes(targetSlot) || blocked.includes(targetSlot) || (available && available.length > 0 && !available.includes(targetSlot));
+          if (isTaken) {
+            setBookingError(
+              isAr
+                ? `الموعد ${targetSlot} محجوز مسبقاً وغير متاح. يرجى اختيار موعد آخر.`
+                : `Le créneau ${targetSlot} est déjà réservé et n'est plus disponible. Veuillez choisir un autre créneau.`
+            );
+          }
+        })
+        .catch(() => {});
+    }
   };
 
   // Confirm Appointment
@@ -850,23 +872,23 @@ export default function SearchDoctorsPage({ onOpenLogin }) {
       {/* ══════════════════════════════════════════════════════════════
           3. MAIN RESULTS & MAP LAYOUT (2 COLUMNS - ÉLARGIE)
           ══════════════════════════════════════════════════════════════ */}
-      <main id="search-results-section" className="flex-1 max-w-[1450px] w-full mx-auto px-3 sm:px-6 lg:px-10 py-5 sm:py-8 overflow-visible">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8">
+      <main id="search-results-section" className="flex-1 max-w-[1450px] w-full mx-auto px-3 sm:px-6 lg:px-10 py-3.5 sm:py-8 overflow-visible">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6 lg:gap-8">
 
           {/* LEFT COLUMN: RESULTS COUNTER & DOCTORS LIST MATRIX */}
-          <div className="lg:col-span-9 space-y-4 sm:space-y-6 w-full min-w-0">
+          <div className="lg:col-span-9 space-y-3.5 sm:space-y-6 w-full min-w-0">
 
-            {/* MOBILE ONLY SOS BUTTON (SHOWN AT TOP OF LIST ON MOBILE) */}
+            {/* MOBILE ONLY SOS BUTTON (COMPACT BAR) */}
             <div className="block lg:hidden w-full">
               <button
                 type="button"
                 onClick={() => setSosMode(!sosMode)}
-                className={`w-full p-3 rounded-2xl font-black text-xs transition-all flex items-center justify-between gap-2 shadow-md cursor-pointer ${
+                className={`w-full px-3.5 py-2.5 rounded-xl font-black text-xs transition-all flex items-center justify-between gap-2 shadow-sm cursor-pointer ${
                   sosMode ? 'bg-rose-800 text-white ring-2 ring-rose-400' : 'bg-gradient-to-r from-rose-600 to-red-600 text-white'
                 }`}
               >
                 <div className="flex items-center gap-2">
-                  <span className="text-base">🚨</span>
+                  <span className="text-sm">🚨</span>
                   <span>{isAr ? 'طوارئ 24/7 SOS' : 'SOS Urgences 24/7'}</span>
                 </div>
                 <div className="flex items-center gap-1.5">
@@ -879,33 +901,33 @@ export default function SearchDoctorsPage({ onOpenLogin }) {
             </div>
 
             {/* Results Counter Title, Sorting & Disponibilités Button Row */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 border-b border-slate-200/70 dark:border-slate-800 pb-3 sm:pb-4">
-              <div className="space-y-1">
-                <h1 className="text-xl sm:text-2xl md:text-3xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2 sm:gap-3 flex-wrap">
-                  <span>{filteredDoctors.length}</span>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-4 border-b border-slate-200/70 dark:border-slate-800 pb-3 sm:pb-4">
+              <div className="flex items-baseline justify-between sm:block gap-2">
+                <h1 className="text-lg sm:text-2xl md:text-3xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-1.5 sm:gap-3 flex-wrap">
+                  <span className="text-[#0086cd] dark:text-cyan-400">{filteredDoctors.length}</span>
                   <span>{isAr ? 'طبيب متاح للحجز' : 'praticiens disponibles'}</span>
                 </h1>
-                <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 font-medium">
+                <p className="hidden sm:block text-xs sm:text-sm text-slate-500 dark:text-slate-400 font-medium mt-1">
                   {isAr
                     ? 'الأطباء والأخصائيون في تونس : احجز موعدك الطبي عبر الإنترنت بكل سهولة'
                     : 'Médecins & spécialistes en Tunisie : réservez vos rendez-vous en ligne'}
                 </p>
               </div>
 
-              {/* Sorting & Disponibilités Controls */}
-              <div className="flex items-center gap-2 sm:gap-3 flex-wrap w-full sm:w-auto">
-                <div className="flex items-center gap-2 bg-white dark:bg-[#0c1a2e] px-3 py-2 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs text-xs font-bold text-slate-700 dark:text-slate-300">
-                  <span className="text-slate-400 dark:text-slate-500">{isAr ? 'ترتيب حسب :' : 'Trier par :'}</span>
+              {/* Sorting & Disponibilités Controls — Single organized row on mobile */}
+              <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
+                <div className="flex-1 sm:flex-initial min-w-0 flex items-center gap-1.5 bg-white dark:bg-[#0c1a2e] px-2.5 sm:px-3 py-2 rounded-xl sm:rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs text-xs font-bold text-slate-700 dark:text-slate-300">
+                  <span className="text-slate-400 dark:text-slate-500 shrink-0 hidden sm:inline">{isAr ? 'ترتيب حسب :' : 'Trier par :'}</span>
                   <select
                     value={currentSort}
                     onChange={(e) => setCurrentSort(e.target.value)}
-                    className="bg-transparent font-extrabold text-[#0086cd] dark:text-cyan-400 outline-none cursor-pointer"
+                    className="w-full bg-transparent font-extrabold text-[#0086cd] dark:text-cyan-400 outline-none cursor-pointer truncate text-xs"
                   >
-                    <option value="earliest_slot" className="dark:bg-[#0c1a2e] dark:text-white">{isAr ? '⚡ أقرب موعد' : '⚡ Prochain créneau rapide'}</option>
+                    <option value="earliest_slot" className="dark:bg-[#0c1a2e] dark:text-white">{isAr ? '⚡ أقرب موعد' : '⚡ Prochain créneau'}</option>
                     {ENABLE_REVIEWS && (
-                      <option value="best_rating" className="dark:bg-[#0c1a2e] dark:text-white">{isAr ? '⭐ أفضل التقييمات' : '⭐ Meilleures notes & avis'}</option>
+                      <option value="best_rating" className="dark:bg-[#0c1a2e] dark:text-white">{isAr ? '⭐ أفضل التقييمات' : '⭐ Meilleures notes'}</option>
                     )}
-                    <option value="closest_distance" className="dark:bg-[#0c1a2e] dark:text-white">{isAr ? '📍 الأقرب موقعاً (GPS)' : '📍 Distance GPS la plus proche'}</option>
+                    <option value="closest_distance" className="dark:bg-[#0c1a2e] dark:text-white">{isAr ? '📍 الأقرب موقعاً (GPS)' : '📍 Plus proche (GPS)'}</option>
                     <option value="lowest_fee" className="dark:bg-[#0c1a2e] dark:text-white">{isAr ? '💵 السعر الأنسب' : '💵 Tarif le plus bas'}</option>
                   </select>
                 </div>
@@ -914,11 +936,11 @@ export default function SearchDoctorsPage({ onOpenLogin }) {
                 <button
                   type="button"
                   onClick={() => setShowAvailModal(true)}
-                  className="group bg-white dark:bg-[#0c1a2e] hover:bg-cyan-50/70 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-100 hover:text-[#0086cd] dark:hover:text-cyan-400 font-bold px-4 py-2 rounded-2xl border border-slate-200/90 dark:border-slate-700 shadow-xs hover:shadow-md transition-all flex items-center gap-2.5 shrink-0 cursor-pointer"
+                  className="group bg-white dark:bg-[#0c1a2e] hover:bg-cyan-50/70 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-100 hover:text-[#0086cd] dark:hover:text-cyan-400 font-bold px-3 sm:px-4 py-2 rounded-xl sm:rounded-2xl border border-slate-200/90 dark:border-slate-700 shadow-xs hover:shadow-md transition-all flex items-center gap-1.5 sm:gap-2.5 shrink-0 cursor-pointer"
                 >
-                  <img src="/images/calendar.png" alt="Calendrier" className="w-5 h-5 object-contain" />
+                  <img src="/images/calendar.png" alt="Calendrier" className="w-4 h-4 sm:w-5 sm:h-5 object-contain" />
                   <span className="text-xs font-extrabold text-slate-900 dark:text-white group-hover:text-[#0086cd] dark:group-hover:text-cyan-400 transition-colors">
-                    {isAr ? 'المواعيد المتاحة' : 'Disponibilités'}
+                    {isAr ? 'المواعيد' : 'Disponibilités'}
                   </span>
                   {activeAvailabilityFilter && (
                     <span className="w-2 h-2 rounded-full bg-[#0086cd]"></span>

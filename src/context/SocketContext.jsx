@@ -235,6 +235,18 @@ export const SocketProvider = ({ children }) => {
           if (prev.some(item => item.id === notif.id)) {
             return prev;
           }
+          // Trigger native phone notification banner in Flutter when user is logged in
+          try {
+            if (userRef.current.isAuthenticated && typeof window !== 'undefined' && window.Maw2idiNotify?.postMessage) {
+              window.Maw2idiNotify.postMessage(JSON.stringify({
+                id: notif.id || String(Date.now()),
+                title: notif.title || 'Maw2idi',
+                message: notif.message || '',
+                category: notif.category || 'system',
+                route: notif.actionUrl || (userRef.current.role === 'DOCTOR' ? '/doctor/dashboard' : '/patient/dashboard')
+              }));
+            }
+          } catch {}
           return [notif, ...prev];
         });
       }

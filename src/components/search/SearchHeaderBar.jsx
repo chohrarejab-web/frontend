@@ -169,11 +169,11 @@ export default function SearchHeaderBar({
   };
 
   return (
-    <section className="relative z-30 bg-[#00b4b6] dark:bg-[#0a1e34] pb-6 sm:pb-8 pt-3 sm:pt-4 px-3 sm:px-4 border-b border-blue-600/30 dark:border-slate-800/80 transition-colors duration-300 w-full max-w-full overflow-visible">
+    <section className="relative z-30 bg-[#00b4b6] dark:bg-[#0a1e34] pb-4 sm:pb-8 pt-2.5 sm:pt-4 px-3 sm:px-4 border-b border-blue-600/30 dark:border-slate-800/80 transition-colors duration-300 w-full max-w-full overflow-visible">
       <div className="w-full max-w-5xl mx-auto">
 
         {/* Integrated Search Pill Container */}
-        <div className="relative z-40 bg-white dark:bg-[#0c1a2e] rounded-2xl md:rounded-full p-2 shadow-xl shadow-blue-950/20 dark:shadow-slate-950/60 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-2 border border-slate-100 dark:border-slate-800 transition-colors duration-300 w-full max-w-full">
+        <div className="relative z-40 bg-white dark:bg-[#0c1a2e] rounded-2xl md:rounded-full p-2 shadow-xl shadow-blue-950/20 dark:shadow-slate-950/60 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-1.5 sm:gap-2 border border-slate-100 dark:border-slate-800 transition-colors duration-300 w-full max-w-full">
 
           {/* Field 1: Doctor Name / Specialty */}
           <div
@@ -419,7 +419,7 @@ export default function SearchHeaderBar({
           <button
             type="button"
             onClick={() => commitSearch(localKeyword, localLocation)}
-            className="w-full md:w-auto bg-[#032b43] hover:bg-[#002b49] dark:bg-[#0086cd] dark:hover:bg-[#0074b3] text-white font-extrabold px-8 py-3.5 rounded-full text-xs uppercase tracking-wider shadow-md transition-all duration-300 flex items-center justify-center gap-1.5 shrink-0 cursor-pointer"
+            className="w-full md:w-auto bg-[#032b43] hover:bg-[#002b49] dark:bg-[#0086cd] dark:hover:bg-[#0074b3] text-white font-extrabold px-6 sm:px-8 py-2.5 sm:py-3.5 rounded-xl md:rounded-full text-xs uppercase tracking-wider shadow-md transition-all duration-300 flex items-center justify-center gap-1.5 shrink-0 cursor-pointer"
           >
             <span>{isAr ? 'بحث' : 'Rechercher'}</span>
             <span>›</span>
@@ -427,10 +427,13 @@ export default function SearchHeaderBar({
 
         </div>
 
-        {/* INSTANT LIVE FILTER CHIPS & SOS MODE */}
-        <div className="mt-3 sm:mt-4 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 w-full">
-          <div className="flex-1 w-full max-w-full min-w-0 overflow-x-auto no-scrollbar scroll-smooth flex items-center gap-1.5 sm:gap-2 py-1 touch-pan-x">
-            <span className="text-[11px] sm:text-xs font-black text-white/90 uppercase tracking-wider shrink-0 mr-1">
+        {/* INSTANT LIVE FILTER CHIPS */}
+        <div className="mt-3 sm:mt-4 space-y-1.5 w-full">
+          <div className="text-[10px] sm:text-xs font-black text-white/85 uppercase tracking-wider px-0.5 sm:hidden">
+            {isAr ? 'فلاتر سريعة' : 'Filtres rapides'}
+          </div>
+          <div className="-mx-3 px-3 sm:mx-0 sm:px-0 w-[calc(100%+1.5rem)] sm:w-full min-w-0 overflow-x-auto no-scrollbar scroll-smooth flex items-center gap-2 py-0.5 touch-pan-x">
+            <span className="hidden sm:inline text-xs font-black text-white/90 uppercase tracking-wider shrink-0 mr-1">
               {isAr ? 'فلاتر سريعة :' : 'Filtres rapides :'}
             </span>
 
@@ -497,8 +500,12 @@ export default function SearchHeaderBar({
         </div>
 
         {/* POPULAR PLACES PILLS ROW */}
-        <div className="mt-2 w-full max-w-full min-w-0 flex items-center gap-1.5 sm:gap-2 overflow-x-auto no-scrollbar pb-1 text-xs text-white/90 touch-pan-x scroll-smooth">
-          <span className="font-extrabold shrink-0 text-white/80">{isAr ? '📍 المدن :' : '📍 Villes :'}</span>
+        <div className="mt-2.5 space-y-1">
+          <div className="text-[10px] font-black text-white/85 uppercase tracking-wider px-0.5 sm:hidden">
+            {isAr ? '📍 المدن' : '📍 Villes'}
+          </div>
+          <div className="-mx-3 px-3 sm:mx-0 sm:px-0 w-[calc(100%+1.5rem)] sm:w-full min-w-0 flex items-center gap-1.5 sm:gap-2 overflow-x-auto no-scrollbar pb-1 text-xs text-white/90 touch-pan-x scroll-smooth">
+            <span className="hidden sm:inline font-extrabold shrink-0 text-white/80">{isAr ? '📍 المدن :' : '📍 Villes :'}</span>
           {quickCities.map((c, i) => {
             const label = c ? (isAr ? resolveDoctorCity(c, 'ar') : c) : (isAr ? 'كامل تراب تونس' : 'Toute la Tunisie');
             const isActive = activeCityPill === c;
@@ -507,7 +514,7 @@ export default function SearchHeaderBar({
                 key={i}
                 type="button"
                 onClick={() => handleCityClick(c)}
-                className={`font-bold text-[11px] sm:text-xs px-2.5 sm:px-3 py-1 rounded-full transition-all shrink-0 cursor-pointer ${
+                className={`font-bold text-[11px] sm:text-xs px-3 py-1 rounded-full transition-all shrink-0 cursor-pointer ${
                   isActive
                     ? 'bg-white dark:bg-teal-500 text-[#032b43] dark:text-white font-black shadow-md'
                     : 'bg-white/20 hover:bg-white text-white hover:text-[#032b43] dark:hover:bg-slate-800 dark:hover:text-white'
@@ -517,6 +524,7 @@ export default function SearchHeaderBar({
               </button>
             );
           })}
+          </div>
         </div>
 
       </div>

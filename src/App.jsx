@@ -1,5 +1,5 @@
-import React, { useState, useEffect, lazy, Suspense } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
+import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { LanguageProvider, useLanguage } from './context/LanguageContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -27,6 +27,9 @@ function ScrollToTop() {
 import Navbar from './components/common/Navbar';
 import Footer from './components/common/Footer';
 import ErrorBoundary from './components/common/ErrorBoundary';
+import MobileBottomNav from './components/common/MobileBottomNav';
+import OfflineBanner from './components/common/OfflineBanner';
+import { isMobileApp, initMobileShell } from './utils/mobilePlatform';
 
 // Landing Page eager, heavy widgets & secondary pages lazy-loaded via resilient code splitting
 import LandingPage from './pages/LandingPage';
@@ -46,7 +49,7 @@ const lazyRetry = (componentImport) =>
         if (!sessionStorage.getItem(key)) {
           sessionStorage.setItem(key, '1');
           window.location.reload();
-          return new Promise(() => {});
+          return new Promise(() => { });
         }
         sessionStorage.removeItem(key);
         throw retryErr;
@@ -63,6 +66,8 @@ const SearchDoctorsPage = lazyRetry(() => import('./pages/SearchDoctorsPage'));
 const PatientDashboardPage = lazyRetry(() => import('./pages/PatientDashboardPage'));
 const DoctorDashboardPage = lazyRetry(() => import('./pages/DoctorDashboardPage'));
 const DoctorAuthPage = lazyRetry(() => import('./pages/DoctorAuthPage'));
+const DoctorOnboardingPage = lazyRetry(() => import('./pages/DoctorOnboardingPage'));
+const AdminDashboardPage = lazyRetry(() => import('./pages/AdminDashboardPage'));
 const PrescriptionVerifyPage = lazyRetry(() => import('./pages/PrescriptionVerifyPage'));
 const TeleconsultationPage = lazyRetry(() => import('./pages/TeleconsultationPage'));
 const DoctorDetailsPage = lazyRetry(() => import('./pages/DoctorDetailsPage'));
@@ -93,7 +98,7 @@ function DoctorProtectedRoute({ children }) {
   const { user, loading } = useAuth();
   const isLocked = typeof window !== 'undefined' && sessionStorage.getItem('sahatn_doctor_session_locked') === 'true';
   const hasDocAuth = typeof window !== 'undefined' && (
-    localStorage.getItem('sahatn_doctor_authenticated') === 'true' || 
+    localStorage.getItem('sahatn_doctor_authenticated') === 'true' ||
     sessionStorage.getItem('sahatn_doctor_authenticated') === 'true'
   );
 
@@ -107,10 +112,10 @@ function DoctorProtectedRoute({ children }) {
   }
 
   const isDoctor = user && (
-    user.role === 'DOCTOR' || 
-    user.role === 'PRATICIEN' || 
-    user.role === 'ADMIN' || 
-    user.role === 'SUPER_ADMIN' || 
+    user.role === 'DOCTOR' ||
+    user.role === 'PRATICIEN' ||
+    user.role === 'ADMIN' ||
+    user.role === 'SUPER_ADMIN' ||
     Boolean(user.doctorId)
   );
 
@@ -147,11 +152,62 @@ function AppContent() {
   const [showForgotPasswordModal, setShowForgotPasswordModal] = useState(false);
   const [forgotPasswordEmail, setForgotPasswordEmail] = useState('');
   const location = useLocation();
+  const navigate = useNavigate();
+  const mobileMode = isMobileApp();
   const isDoctorAuth = location.pathname.startsWith('/doctor/auth');
   const isAdmin = location.pathname.startsWith('/admin');
   const isDoctorDashboard = location.pathname.startsWith('/doctor/dashboard');
   const isDoctorOnboarding = location.pathname.startsWith('/doctor/onboarding') || location.pathname.startsWith('/doctor/finalize') || location.pathname.startsWith('/doctor/setup');
   const hidePublicChrome = isDoctorAuth || isAdmin || isDoctorDashboard || isDoctorOnboarding;
+
+  const backHandlerRef = useRef(null);
+  backHandlerRef.current = () => {
+    // 1. Close any open top-level auth modal first
+    if (showLoginModal) { setShowLoginModal(false); return true; }
+    if (showSignupModal) { setShowSignupModal(false); return true; }
+    if (showForgotPasswordModal) { setShowForgotPasswordModal(false); return true; }
+
+    // 2. Close any visible page modal (BookingModal, Filters, Drawer, etc.)
+    const modalOverlays = Array.from(
+      document.querySelectorAll('.fixed.inset-0, [role="dialog"], [data-modal="true"]')
+    ).filter(el => {
+      const style = window.getComputedStyle(el);
+      return style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0';
+    });
+    if (modalOverlays.length > 0) {
+      const topModal = modalOverlays[modalOverlays.length - 1];
+      let closeBtn = topModal.querySelector(
+        'button[title*="Fermer" i], button[aria-label*="Fermer" i], button[title*="Close" i], button[aria-label*="Close" i], [data-close-modal]'
+      );
+      if (!closeBtn) {
+        const allButtons = Array.from(topModal.querySelectorAll('button'));
+        closeBtn = allButtons.find(b => ['✕', '×', 'x'].includes(b.textContent.trim().toLowerCase()));
+      }
+      if (closeBtn && typeof closeBtn.click === 'function') {
+        closeBtn.click();
+        return true;
+      }
+    }
+
+    // 3. Navigate back inside React Router instead of closing the app
+    if (location.pathname !== '/') {
+      if (window.history.length > 1) {
+        navigate(-1);
+      } else {
+        navigate('/', { replace: true });
+      }
+      return true;
+    }
+
+    return false;
+  };
+
+  // Initialize Capacitor native status bar & Android hardware back button
+  useEffect(() => {
+    let cleanup = () => { };
+    initMobileShell(() => (backHandlerRef.current ? backHandlerRef.current() : false)).then((fn) => { cleanup = fn; });
+    return () => cleanup();
+  }, []);
 
   // Universal Escape key listener to close ANY open modal across the application
   useEffect(() => {
@@ -219,8 +275,9 @@ function AppContent() {
 
   return (
     <div className="min-h-screen w-full max-w-full overflow-x-clip flex flex-col bg-[#edf7f9] dark:bg-[#071120] text-slate-800 dark:text-slate-100 transition-colors duration-300" dir={isRtl ? "rtl" : "ltr"}>
+      <OfflineBanner />
       <ScrollToTop />
-      
+
       {/* Global Navbar (Hidden on Doctor Auth, Doctor Dashboard and Admin dedicated consoles) */}
       {!hidePublicChrome && (
         <Navbar
@@ -230,7 +287,7 @@ function AppContent() {
       )}
 
       {/* Main Routed Content */}
-      <main className="flex-1 w-full max-w-full overflow-x-clip flex flex-col">
+      <main className={`flex-1 w-full max-w-full overflow-x-clip flex flex-col ${mobileMode && !isDoctorAuth ? 'pb-20' : ''}`}>
         <ErrorBoundary>
           <Suspense fallback={<RouteLoader />}>
             <Routes>
@@ -241,42 +298,54 @@ function AppContent() {
               <Route path="/soignants/:id" element={<DoctorDetailsPage onOpenLogin={() => setShowLoginModal(true)} />} />
               <Route path="/soignants" element={<DoctorDetailsPage onOpenLogin={() => setShowLoginModal(true)} />} />
               <Route path="/soignant/:id" element={<DoctorDetailsPage onOpenLogin={() => setShowLoginModal(true)} />} />
-              <Route 
-                path="/patient/dashboard" 
+              <Route
+                path="/patient/dashboard"
                 element={
-                  <PatientDashboardPage 
-                    onOpenLogin={() => setShowLoginModal(true)} 
-                    onOpenSignup={() => setShowSignupModal(true)} 
+                  <PatientDashboardPage
+                    onOpenLogin={() => setShowLoginModal(true)}
+                    onOpenSignup={() => setShowSignupModal(true)}
                   />
-                } 
+                }
               />
-              <Route 
-                path="/doctor/dashboard" 
+              <Route
+                path="/doctor/dashboard"
                 element={
                   <DoctorProtectedRoute>
                     <DoctorDashboardPage />
                   </DoctorProtectedRoute>
-                } 
+                }
               />
               <Route path="/doctor/auth" element={<DoctorAuthPage />} />
-              <Route path="/doctor/onboarding" element={<Navigate to="/doctor/auth" replace />} />
-              <Route path="/doctor/finalize" element={<Navigate to="/doctor/auth" replace />} />
-              <Route path="/doctor/setup" element={<Navigate to="/doctor/auth" replace />} />
-              <Route path="/admin/*" element={<Navigate to="/" replace />} />
-              <Route path="/admin" element={<Navigate to="/" replace />} />
+              <Route path="/doctor/onboarding" element={<DoctorOnboardingPage />} />
+              <Route path="/doctor/finalize" element={<DoctorOnboardingPage />} />
+              <Route path="/doctor/setup" element={<DoctorOnboardingPage />} />
+              {/* Admin Console is Web-Only: hidden in the Mobile App build */}
+              <Route
+                path="/admin/dashboard"
+                element={
+                  mobileMode ? (
+                    <Navigate to="/" replace />
+                  ) : (
+                    <AdminProtectedRoute>
+                      <AdminDashboardPage />
+                    </AdminProtectedRoute>
+                  )
+                }
+              />
+              <Route path="/admin" element={<Navigate to={mobileMode ? "/" : "/admin/dashboard"} replace />} />
               <Route path="/verify/prescription/:hash" element={<PrescriptionVerifyPage />} />
               <Route path="/verify/prescription" element={<PrescriptionVerifyPage />} />
               <Route path="/pages/Prescriptions/verify.html" element={<PrescriptionVerifyPage />} />
               <Route path="/pages/Prescriptions/verify" element={<PrescriptionVerifyPage />} />
               <Route path="/teleconsultation" element={<TeleconsultationPage />} />
-              <Route 
-                path="/parametres" 
+              <Route
+                path="/parametres"
                 element={
-                  <SettingsPage 
-                    onOpenLogin={() => setShowLoginModal(true)} 
-                    onOpenSignup={() => setShowSignupModal(true)} 
+                  <SettingsPage
+                    onOpenLogin={() => setShowLoginModal(true)}
+                    onOpenSignup={() => setShowSignupModal(true)}
                   />
-                } 
+                }
               />
               <Route path="/settings" element={<Navigate to="/parametres" replace />} />
               <Route path="*" element={<Navigate to="/" replace />} />
@@ -285,11 +354,16 @@ function AppContent() {
         </ErrorBoundary>
       </main>
 
-      {/* Global Footer (Hidden on Doctor Auth, Doctor Dashboard and Admin dedicated consoles) */}
-      {!hidePublicChrome && <Footer />}
+      {/* Global Footer (Hidden on Mobile App, Doctor Auth, Doctor Dashboard and Admin consoles) */}
+      {!hidePublicChrome && !mobileMode && <Footer />}
 
-      {/* Floating AI DocBot Assistant (Hidden on Doctor and Admin consoles) */}
-      {!hidePublicChrome && (
+      {/* Native-style Mobile Bottom Tab Bar (Mobile App Mode) */}
+      {mobileMode && !isDoctorAuth && !isDoctorOnboarding && (
+        <MobileBottomNav onOpenLogin={() => setShowLoginModal(true)} />
+      )}
+
+      {/* Floating AI DocBot Assistant (Hidden on Mobile App, Doctor and Admin consoles) */}
+      {!hidePublicChrome && !mobileMode && (
         <Suspense fallback={null}>
           <DocBotWidget />
         </Suspense>

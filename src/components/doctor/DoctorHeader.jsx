@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Stethoscope, Bell, LogOut, Volume2, Camera, Edit2, Home } from 'lucide-react';
+import { Stethoscope, Bell, LogOut, Volume2, Camera, Edit2, Home, Sun, Moon, X } from 'lucide-react';
 import DayNightToggle from '../common/DayNightToggle';
+import { isMobileApp } from '../../utils/mobilePlatform';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { useSocket } from '../../context/SocketContext';
@@ -46,6 +47,8 @@ export default function DoctorHeader({
   const [animatingLang, setAnimatingLang] = useState(false);
   const notifRef = useRef(null);
   const doctorSwitcherRef = useRef(null);
+  const mobileMode = isMobileApp();
+  const canSwitchDoctors = !mobileMode || user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN';
 
   const activeDocId = doctorId || (typeof localStorage !== 'undefined' ? localStorage.getItem('sahatn_active_doctor_id') : null) || user?.doctorId || user?.doctor_id || (user?.role === 'DOCTOR' ? user?.id : null) || 'doc-1';
   const activeDocName = (doctorName || user?.name || '').toLowerCase().replace(/^(dr\.?|docteur)\s*/i, '').trim();
@@ -333,7 +336,7 @@ export default function DoctorHeader({
           </button>
 
           {/* Quick Doctor Profile Switcher */}
-          {doctorList.length > 1 && (
+          {canSwitchDoctors && doctorList.length > 1 && (
             <div className="relative shrink-0" ref={doctorSwitcherRef}>
               <button
                 type="button"
@@ -395,45 +398,55 @@ export default function DoctorHeader({
             (Order 2 on mobile/tablet to sit on Row 1; Order 3 on desktop) */}
         <div className="flex items-center gap-1 sm:gap-1.5 shrink-0 order-2 min-[1440px]:order-3 ml-auto">
           
-          {/* Button: Return to Public Landing Page */}
-          <Link
-            to="/"
-            id="doctor-header-home-btn"
-            className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/15 text-white text-xs font-bold transition-all cursor-pointer active:scale-95 shadow-xs shrink-0"
-            title={lang === 'ar' ? "العودة إلى الصفحة الرئيسية للموقع Maw2idi" : "Retour à la page d'accueil principale Maw2idi"}
-          >
-            <Home className="w-3.5 h-3.5 text-teal-300 shrink-0" />
-            <span className="hidden min-[1600px]:inline whitespace-nowrap">{lang === 'ar' ? 'الرئيسية' : 'Accueil Maw2idi'}</span>
-            <span className="hidden min-[1440px]:inline min-[1600px]:hidden whitespace-nowrap">{lang === 'ar' ? 'الرئيسية' : 'Accueil'}</span>
-          </Link>
+          {/* Button: Return to Public Landing Page (hidden in mobile app since bottom tab bar has Accueil) */}
+          {!mobileMode && (
+            <Link
+              to="/"
+              id="doctor-header-home-btn"
+              className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/15 text-white text-xs font-bold transition-all cursor-pointer active:scale-95 shadow-xs shrink-0"
+              title={lang === 'ar' ? "العودة إلى الصفحة الرئيسية للموقع Maw2idi" : "Retour à la page d'accueil principale Maw2idi"}
+            >
+              <Home className="w-3.5 h-3.5 text-teal-300 shrink-0" />
+              <span className="hidden min-[1600px]:inline whitespace-nowrap">{lang === 'ar' ? 'الرئيسية' : 'Accueil Maw2idi'}</span>
+              <span className="hidden min-[1440px]:inline min-[1600px]:hidden whitespace-nowrap">{lang === 'ar' ? 'الرئيسية' : 'Accueil'}</span>
+            </Link>
+          )}
           
           {/* Notifications Bell with Synchronized Live Badge */}
           <div className="relative" ref={notifRef}>
             <button
               type="button"
               onClick={() => setNotifOpen(!notifOpen)}
-              className="p-1.5 sm:p-2 rounded-xl text-slate-300 hover:text-white hover:bg-slate-800/60 transition-colors relative cursor-pointer"
+              className="p-2 rounded-xl bg-white/10 sm:bg-transparent text-slate-200 hover:text-white hover:bg-slate-800/60 transition-colors relative cursor-pointer"
               title={t('doc_notif_title', 'Notifications Praticien')}
             >
               <Bell className="w-4 h-4" />
               {doctorUnreadCount > 0 && (
-                <span className="absolute top-0.5 right-0.5 min-w-4 h-4 px-1 bg-rose-500 text-white rounded-full text-[9px] font-black flex items-center justify-center shadow-xs animate-pulse">
+                <span className="absolute -top-0.5 -right-0.5 min-w-4 h-4 px-1 bg-rose-500 text-white rounded-full text-[9px] font-black flex items-center justify-center shadow-xs animate-pulse">
                   {doctorUnreadCount > 9 ? '9+' : doctorUnreadCount}
                 </span>
               )}
             </button>
 
-            {/* Synchronized Dropdown Menu */}
+            {/* Mobile backdrop when notifications panel is open */}
             {notifOpen && (
               <div
-                className="absolute right-0 rtl:right-auto rtl:left-0 mt-2 w-80 sm:w-96 bg-white dark:bg-[#0c162d] rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 p-3 text-slate-800 dark:text-white z-[60] text-xs space-y-2 animate-in fade-in zoom-in-95"
+                onClick={() => setNotifOpen(false)}
+                className="fixed inset-0 bg-slate-950/40 backdrop-blur-[1px] z-[55] sm:hidden"
+              />
+            )}
+
+            {/* Synchronized Dropdown Menu — centered modal sheet on mobile, right-aligned dropdown on desktop */}
+            {notifOpen && (
+              <div
+                className="fixed inset-x-3 top-[72px] w-auto max-w-md mx-auto sm:mx-0 sm:inset-x-auto sm:top-auto sm:absolute sm:right-0 sm:rtl:right-auto sm:rtl:left-0 sm:mt-2 sm:w-96 bg-white dark:bg-[#0c162d] rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 p-3 text-slate-800 dark:text-white z-[60] text-xs space-y-2 animate-in fade-in zoom-in-95"
                 dir={lang === 'ar' ? 'rtl' : 'ltr'}
               >
-                <div className="flex items-center justify-between font-bold border-b border-slate-100 dark:border-slate-800 pb-2">
-                  <span className="flex items-center gap-1.5 font-black text-slate-900 dark:text-white text-xs">
-                    <span>🔔</span> {lang === 'ar' ? `إشعارات الطبيب (${doctorNotifications.length})` : `${t('doc_notif_title', 'Notifications Praticien')} (${doctorNotifications.length})`}
+                <div className="flex items-center justify-between gap-2 font-bold border-b border-slate-100 dark:border-slate-800 pb-2">
+                  <span className="flex items-center gap-1.5 font-black text-slate-900 dark:text-white text-xs truncate">
+                    <span>🔔</span> {lang === 'ar' ? `إشعارات الطبيب (${doctorNotifications.length})` : `${t('doc_notif_title', 'Notifications')} (${doctorNotifications.length})`}
                   </span>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 shrink-0">
                     {doctorUnreadCount > 0 && (
                       <span className="text-[10px] bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 font-black px-1.5 py-0.5 rounded-full">
                         {doctorUnreadCount} {lang === 'ar' ? 'غير مقروءة' : t('doc_notif_unread', 'non lues')}
@@ -446,7 +459,7 @@ export default function DoctorHeader({
                         className="text-[10px] text-teal-600 hover:text-teal-700 dark:text-teal-400 font-bold hover:underline cursor-pointer transition-colors"
                         title={lang === 'ar' ? 'تحديد الكل كمقروء' : 'Marquer toutes les notifications comme lues'}
                       >
-                        {lang === 'ar' ? 'تحديد الكل كمقروء' : t('doc_notif_mark_all', 'Tout marquer lu')}
+                        {lang === 'ar' ? 'الكل مقروء' : t('doc_notif_mark_all', 'Tout lu')}
                       </button>
                     ) : doctorNotifications.length > 0 ? (
                       <button
@@ -455,13 +468,21 @@ export default function DoctorHeader({
                         className="text-[10px] text-amber-600 hover:text-amber-700 dark:text-amber-400 font-bold hover:underline cursor-pointer transition-colors"
                         title={lang === 'ar' ? 'تحديد الكل كغير مقروء' : 'Marquer toutes les notifications comme non lues'}
                       >
-                        {lang === 'ar' ? 'تحديد الكل كغير مقروء' : 'Tout marquer non lu'}
+                        {lang === 'ar' ? 'الكل غير مقروء' : 'Tout non lu'}
                       </button>
                     ) : null}
+                    <button
+                      type="button"
+                      onClick={() => setNotifOpen(false)}
+                      className="sm:hidden p-1 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white"
+                      aria-label="Fermer"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
                   </div>
                 </div>
 
-                <div className="max-h-72 overflow-y-auto space-y-2 py-1 pr-1">
+                <div className="max-h-[55vh] sm:max-h-72 overflow-y-auto space-y-2 py-1 pr-1">
                   {doctorNotifications.length === 0 ? (
                     <p className="text-center text-slate-400 dark:text-slate-500 py-4 font-semibold text-xs">
                       {lang === 'ar' ? 'لا توجد إشعارات حالياً.' : t('doc_notif_empty', 'Aucune notification pour le moment.')}
@@ -513,52 +534,75 @@ export default function DoctorHeader({
             )}
           </div>
 
-          {/* Custom Day/Night Toggle Switch */}
-          <div className="scale-[0.78] sm:scale-90 origin-center shrink-0">
-            <DayNightToggle
-              isDark={isDark}
-              onToggle={onToggleTheme}
-            />
-          </div>
+          {/* Compact Theme Icon on Mobile App, Full Day/Night Switch on Desktop */}
+          {mobileMode ? (
+            <button
+              type="button"
+              onClick={onToggleTheme}
+              className="p-2 rounded-xl bg-white/10 text-amber-300 hover:bg-white/20 transition-colors cursor-pointer"
+              title={isDark ? 'Mode Clair' : 'Mode Sombre'}
+            >
+              {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4 text-sky-200" />}
+            </button>
+          ) : (
+            <div className="scale-[0.78] sm:scale-90 origin-center shrink-0">
+              <DayNightToggle
+                isDark={isDark}
+                onToggle={onToggleTheme}
+              />
+            </div>
+          )}
 
-          {/* Language Switcher — Flag Toggle Switch (identical to Landing Page) */}
-          <button
-            type="button"
-            onClick={handleToggleLang}
-            id="doctor-lang-btn"
-            className={`sahatn-lang-switch-btn lang-toggle-btn flex-shrink-0 cursor-pointer ${animatingLang ? 'slt-animating' : ''}`}
-            data-lang={lang}
-            title={lang === 'fr' ? 'Passer en Arabe (العربية)' : 'Passer en Français'}
-          >
-            <span className="slt-label slt-label-fr">FR</span>
-            <span className="slt-track">
-              <span className="slt-knob">
-                <svg className="slt-flag-svg slt-flag-fr" viewBox="0 0 36 36">
-                  <rect x="0" y="0" width="12" height="36" fill="#002654" />
-                  <rect x="12" y="0" width="12" height="36" fill="#FFFFFF" />
-                  <rect x="24" y="0" width="12" height="36" fill="#CE1126" />
-                </svg>
-                <svg className="slt-flag-svg slt-flag-ar" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg">
-                  <rect width="36" height="36" fill="#E70013" />
-                  <circle cx="18" cy="18" r="11" fill="#FFFFFF" />
-                  <path d="M 24.67 13.14 A 8.25 8.25 0 1 0 24.67 22.86 A 6.60 6.60 0 1 1 24.67 13.14 Z" fill="#E70013" />
-                  <polygon points="15.25,18.00 18.67,16.89 18.67,13.29 20.78,16.21 24.20,15.09 22.09,18.00 24.20,20.91 20.78,19.79 18.67,22.71 18.67,19.11" fill="#E70013" />
-                </svg>
+          {/* Language Switcher — Compact pill in mobile app, full Flag Toggle on desktop */}
+          {mobileMode ? (
+            <button
+              type="button"
+              onClick={handleToggleLang}
+              id="doctor-lang-btn"
+              className="px-2 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/15 text-white text-[11px] font-black transition-all cursor-pointer shrink-0"
+              title={lang === 'fr' ? 'Passer en Arabe (العربية)' : 'Passer en Français'}
+            >
+              {lang === 'fr' ? 'AR' : 'FR'}
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={handleToggleLang}
+              id="doctor-lang-btn"
+              className={`sahatn-lang-switch-btn lang-toggle-btn flex-shrink-0 cursor-pointer ${animatingLang ? 'slt-animating' : ''}`}
+              data-lang={lang}
+              title={lang === 'fr' ? 'Passer en Arabe (العربية)' : 'Passer en Français'}
+            >
+              <span className="slt-label slt-label-fr">FR</span>
+              <span className="slt-track">
+                <span className="slt-knob">
+                  <svg className="slt-flag-svg slt-flag-fr" viewBox="0 0 36 36">
+                    <rect x="0" y="0" width="12" height="36" fill="#002654" />
+                    <rect x="12" y="0" width="12" height="36" fill="#FFFFFF" />
+                    <rect x="24" y="0" width="12" height="36" fill="#CE1126" />
+                  </svg>
+                  <svg className="slt-flag-svg slt-flag-ar" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg">
+                    <rect width="36" height="36" fill="#E70013" />
+                    <circle cx="18" cy="18" r="11" fill="#FFFFFF" />
+                    <path d="M 24.67 13.14 A 8.25 8.25 0 1 0 24.67 22.86 A 6.60 6.60 0 1 1 24.67 13.14 Z" fill="#E70013" />
+                    <polygon points="15.25,18.00 18.67,16.89 18.67,13.29 20.78,16.21 24.20,15.09 22.09,18.00 24.20,20.91 20.78,19.79 18.67,22.71 18.67,19.11" fill="#E70013" />
+                  </svg>
+                </span>
               </span>
-            </span>
-            <span className="slt-label slt-label-ar">AR</span>
-          </button>
+              <span className="slt-label slt-label-ar">AR</span>
+            </button>
+          )}
 
-          {/* Red Logout Button */}
+          {/* Red Logout Button — icon-only on mobile app to keep header single-row */}
           <button
             type="button"
             onClick={handleLogout}
             id="doctor-header-logout-btn"
-            className="bg-[#DC2626] hover:bg-[#B91C1C] active:scale-95 text-white font-extrabold text-xs px-2.5 sm:px-3 py-1.5 rounded-xl flex items-center gap-1.5 transition-all cursor-pointer shadow-xs shrink-0 whitespace-nowrap"
+            className={`bg-[#DC2626] hover:bg-[#B91C1C] active:scale-95 text-white font-extrabold text-xs ${mobileMode ? 'p-2' : 'px-2.5 sm:px-3 py-1.5'} rounded-xl flex items-center gap-1.5 transition-all cursor-pointer shadow-xs shrink-0 whitespace-nowrap`}
             title={t('doc_logout', "Déconnexion de l'espace praticien")}
           >
             <LogOut className="w-3.5 h-3.5 shrink-0" />
-            <span className="inline font-bold tracking-tight">{t('doc_logout', 'Déconnexion')}</span>
+            {!mobileMode && <span className="inline font-bold tracking-tight">{t('doc_logout', 'Déconnexion')}</span>}
           </button>
 
         </div>

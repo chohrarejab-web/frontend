@@ -7,6 +7,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { Heart, Bell, User, LogOut, Sun, Moon, ChevronDown, Settings, Calendar, Check, Home, Shield, Menu, X } from 'lucide-react';
 
 import DayNightToggle from './DayNightToggle';
+import { isMobileApp, isNativeMobile } from '../../utils/mobilePlatform';
 import {
   getNotificationTitle,
   getNotificationMessage,
@@ -86,10 +87,16 @@ export default function Navbar({ onOpenLogin, onOpenSignup }) {
     }, 350);
   };
 
+  const nativeMobile = isNativeMobile();
+  const mobileMode = isMobileApp();
+
   return (
-    <header className="bg-[#00b4b6] dark:bg-[#0a1e34] w-full border-b border-white/15 dark:border-slate-800/80 py-2.5 sm:py-3.5 transition-colors duration-300 relative z-50 shadow-sm">
-      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 flex items-center justify-between gap-1.5 sm:gap-4">
-        
+    <header
+      style={nativeMobile ? { paddingTop: 'max(env(safe-area-inset-top, 0px), 34px)' } : undefined}
+      className="bg-[#00b4b6] dark:bg-[#0a1e34] w-full border-b border-white/15 dark:border-slate-800/80 py-2.5 sm:py-3.5 transition-colors duration-300 relative z-50 shadow-sm"
+    >
+      <div className="max-w-7xl mx-auto px-3.5 sm:px-6 lg:px-8 flex items-center justify-between gap-2 sm:gap-4">
+
         {/* Brand Logo */}
         <Link to="/" className="flex items-center gap-2 group shrink-0">
           <img
@@ -103,8 +110,8 @@ export default function Navbar({ onOpenLogin, onOpenSignup }) {
         </Link>
 
         {/* Right Action Nav */}
-        <div className="flex items-center gap-1.5 sm:gap-2.5 md:gap-3.5 shrink-0">
-          
+        <div className="flex items-center gap-2 sm:gap-2.5 md:gap-3.5 shrink-0">
+
           {/* Link 1: Patient Dashboard / Mon Espace Santé (Desktop Only) */}
           {isAuthenticated && (
             <Link
@@ -117,7 +124,7 @@ export default function Navbar({ onOpenLogin, onOpenSignup }) {
             </Link>
           )}
 
-          {/* Link 2: Doctor portal (Desktop Only — Lightweight Doctor Companion) */}
+          {/* Link 2: Doctor portal (Desktop Only) */}
           {role === 'DOCTOR' ? (
             <Link
               to="/doctor/dashboard"
@@ -125,6 +132,14 @@ export default function Navbar({ onOpenLogin, onOpenSignup }) {
             >
               <span>🩺</span>
               <span>{t('nav_doctor_space', 'Espace Médecin')}</span>
+            </Link>
+          ) : role === 'SUPER_ADMIN' || role === 'ADMIN' ? (
+            <Link
+              to="/admin/dashboard"
+              className="hidden md:flex bg-amber-400 hover:bg-amber-300 text-amber-950 font-black text-xs sm:text-sm px-3 sm:px-5 py-1.5 sm:py-2.5 rounded-full shadow-md transition-all items-center gap-1.5 whitespace-nowrap"
+            >
+              <span>🛡️</span>
+              <span>Console Admin</span>
             </Link>
           ) : !isAuthenticated ? (
             <Link
@@ -135,115 +150,146 @@ export default function Navbar({ onOpenLogin, onOpenSignup }) {
             </Link>
           ) : null}
 
-          {/* Notifications Bell */}
-          <div className="relative" ref={notifRef}>
-            <button
-              type="button"
-              onClick={() => setShowNotifs(!showNotifs)}
-              className="p-1.5 sm:p-2 rounded-full text-white/90 hover:text-white hover:bg-white/15 transition-all relative cursor-pointer"
-              title="Notifications Maw2idi"
-            >
-              <Bell className="w-4 h-4 sm:w-5 sm:h-5" />
-              {unreadCount > 0 && (
-                <span className="absolute top-0 right-0 min-w-4 h-4 px-1 bg-rose-500 text-white rounded-full text-[9px] font-black flex items-center justify-center shadow-xs animate-pulse">
-                  {unreadCount > 9 ? '9+' : unreadCount}
-                </span>
-              )}
-            </button>
-
-            {/* Dropdown Menu */}
-            {showNotifs && (
-              <div
-                className="absolute right-0 rtl:right-auto rtl:left-0 mt-2 w-80 sm:w-96 bg-white dark:bg-[#0c162d] rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 p-3 text-slate-800 dark:text-white z-[60] text-xs space-y-2 animate-in fade-in zoom-in-95"
-                dir={lang === 'ar' ? 'rtl' : 'ltr'}
+          {/* Notifications Bell (Only shown when logged in) */}
+          {isAuthenticated && (
+            <div className="relative" ref={notifRef}>
+              <button
+                type="button"
+                onClick={() => setShowNotifs(!showNotifs)}
+                className="p-1.5 sm:p-2 rounded-full text-white/90 hover:text-white hover:bg-white/15 transition-all relative cursor-pointer"
+                title="Notifications Maw2idi"
               >
-                <div className="flex items-center justify-between font-bold border-b border-slate-100 dark:border-slate-800 pb-2">
-                  <span className="flex items-center gap-1.5 font-black text-slate-900 dark:text-white text-xs">
-                    <span>🔔</span> {lang === 'ar' ? `الإشعارات (${notifications.length})` : `Notifications (${notifications.length})`}
+                <Bell className="w-4 h-4 sm:w-5 sm:h-5" />
+                {unreadCount > 0 && (
+                  <span className="absolute top-0 right-0 min-w-4 h-4 px-1 bg-rose-500 text-white rounded-full text-[9px] font-black flex items-center justify-center shadow-xs animate-pulse">
+                    {unreadCount > 9 ? '9+' : unreadCount}
                   </span>
-                  <div className="flex items-center gap-2">
-                    {unreadCount > 0 ? (
-                      <>
-                        <span className="text-[10px] bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 font-black px-1.5 py-0.5 rounded-full">
-                          {unreadCount} {lang === 'ar' ? 'غير مقروءة' : 'non lues'}
+                )}
+              </button>
+
+              {/* Organized Notifications Panel (Centered sheet on mobile, anchored dropdown on desktop) */}
+              {showNotifs && (
+                <>
+                  <div
+                    className="fixed inset-0 bg-slate-900/30 backdrop-blur-[1px] z-[55] sm:hidden"
+                    onClick={() => setShowNotifs(false)}
+                  />
+                  <div
+                    style={nativeMobile ? { top: 'calc(max(env(safe-area-inset-top, 0px), 34px) + 3.5rem)' } : undefined}
+                    className="fixed inset-x-3 top-16 sm:static sm:inset-x-auto sm:top-auto sm:absolute sm:right-0 sm:rtl:right-auto sm:rtl:left-0 sm:mt-2 sm:w-96 bg-white dark:bg-[#0c162d] rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 p-3.5 text-slate-800 dark:text-white z-[60] text-xs space-y-2.5 animate-in fade-in zoom-in-95"
+                    dir={lang === 'ar' ? 'rtl' : 'ltr'}
+                  >
+                    <div className="flex items-center justify-between gap-2 border-b border-slate-100 dark:border-slate-800 pb-2.5">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="w-7 h-7 rounded-xl bg-teal-50 dark:bg-teal-950/60 text-[#0086cd] dark:text-cyan-400 flex items-center justify-center shrink-0">
+                          <Bell className="w-3.5 h-3.5" />
                         </span>
+                        <div className="min-w-0">
+                          <span className="font-black text-slate-900 dark:text-white text-xs block truncate">
+                            {lang === 'ar' ? `الإشعارات (${notifications.length})` : `Notifications (${notifications.length})`}
+                          </span>
+                          {unreadCount > 0 && (
+                            <span className="text-[10px] text-rose-600 dark:text-rose-400 font-bold">
+                              {unreadCount} {lang === 'ar' ? 'غير مقروءة' : 'non lues'}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        {unreadCount > 0 ? (
+                          <button
+                            type="button"
+                            onClick={() => markAllAsRead()}
+                            className="text-[10px] bg-teal-50 dark:bg-teal-950/60 text-teal-700 dark:text-teal-300 px-2.5 py-1 rounded-full font-bold hover:bg-teal-100 dark:hover:bg-teal-900/60 cursor-pointer transition-colors"
+                            title={lang === 'ar' ? 'تحديد الكل كمقروء' : 'Marquer toutes les notifications comme lues'}
+                          >
+                            {lang === 'ar' ? 'قراءة الكل' : 'Tout lu'}
+                          </button>
+                        ) : notifications.length > 0 ? (
+                          <button
+                            type="button"
+                            onClick={() => markAllAsUnread()}
+                            className="text-[10px] bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 px-2.5 py-1 rounded-full font-bold hover:bg-amber-100 cursor-pointer transition-colors"
+                            title={lang === 'ar' ? 'تحديد الكل كغير مقروء' : 'Marquer toutes les notifications comme non lues'}
+                          >
+                            {lang === 'ar' ? 'تحديد كغير مقروء' : 'Non lu'}
+                          </button>
+                        ) : null}
                         <button
                           type="button"
-                          onClick={() => markAllAsRead()}
-                          className="text-[10px] text-teal-600 hover:text-teal-700 dark:text-teal-400 font-bold hover:underline cursor-pointer transition-colors"
-                          title={lang === 'ar' ? 'تحديد الكل كمقروء' : 'Marquer toutes les notifications comme lues'}
+                          onClick={() => setShowNotifs(false)}
+                          className="sm:hidden p-1 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+                          aria-label="Fermer"
                         >
-                          {lang === 'ar' ? 'تحديد الكل كمقروء' : 'Tout marquer lu'}
+                          <X className="w-4 h-4" />
                         </button>
-                      </>
-                    ) : notifications.length > 0 ? (
-                      <button
-                        type="button"
-                        onClick={() => markAllAsUnread()}
-                        className="text-[10px] text-amber-600 hover:text-amber-700 dark:text-amber-400 font-bold hover:underline cursor-pointer transition-colors"
-                        title={lang === 'ar' ? 'تحديد الكل كغير مقروء' : 'Marquer toutes les notifications comme non lues'}
-                      >
-                        {lang === 'ar' ? 'تحديد الكل كغير مقروء' : 'Tout marquer non lu'}
-                      </button>
-                    ) : null}
-                  </div>
-                </div>
-
-                <div className="max-h-72 overflow-y-auto space-y-2 py-1 pr-1">
-                  {notifications.length === 0 ? (
-                    <p className="text-center text-slate-400 dark:text-slate-500 py-4 font-semibold text-xs">
-                      {lang === 'ar' ? 'لا توجد إشعارات حالياً.' : 'Aucune notification pour le moment.'}
-                    </p>
-                  ) : (
-                    notifications.map((n) => (
-                      <div
-                        key={n.id}
-                        onClick={() => !n.read && markAsRead(n.id)}
-                        className={`p-2.5 rounded-xl border transition-all cursor-pointer ${
-                          n.read
-                            ? 'bg-slate-50/70 dark:bg-slate-900/60 border-slate-100 dark:border-slate-800 text-slate-600 dark:text-slate-400'
-                            : 'bg-teal-50/90 dark:bg-teal-950/40 border-teal-200 dark:border-teal-800/60 text-slate-900 dark:text-slate-100 font-semibold shadow-xs'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="font-extrabold text-[11px] text-slate-900 dark:text-white flex items-center gap-1.5 truncate">
-                            {!n.read && <span className="w-1.5 h-1.5 rounded-full bg-teal-500 shrink-0" />}
-                            <span>{n.icon || '🔔'}</span>
-                            <span className="truncate">{getNotificationTitle(n, lang)}</span>
-                          </span>
-                          <span 
-                            className="text-[9px] sm:text-[10px] text-slate-500 dark:text-slate-400 shrink-0 font-bold"
-                            title={getExactNotificationFull(n)}
-                          >
-                            {formatExactNotificationTime(n, lang)}
-                          </span>
-                        </div>
-                        <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 leading-snug">
-                          {getNotificationMessage(n, lang)}
-                        </p>
                       </div>
-                    ))
-                  )}
-                </div>
+                    </div>
 
-                {notifications.length > 0 && (
-                  <div className="pt-2 border-t border-slate-100 dark:border-slate-800 text-right rtl:text-left">
-                    <button
-                      type="button"
-                      onClick={() => clearNotifications()}
-                      className="text-[10px] font-bold text-rose-500 hover:text-rose-700 cursor-pointer transition-colors"
-                      title={lang === 'ar' ? 'مسح سجل الإشعارات' : "Effacer l'historique des notifications"}
-                    >
-                      {lang === 'ar' ? 'مسح السجل' : "Effacer l'historique"}
-                    </button>
+                    <div className="max-h-[55vh] sm:max-h-72 overflow-y-auto space-y-2 py-0.5">
+                      {notifications.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center py-6 px-4 text-center space-y-2">
+                          <div className="w-11 h-11 rounded-2xl bg-slate-100 dark:bg-slate-800/80 text-slate-400 flex items-center justify-center">
+                            <Bell className="w-5 h-5" />
+                          </div>
+                          <p className="text-slate-500 dark:text-slate-400 font-bold text-xs">
+                            {lang === 'ar' ? 'لا توجد إشعارات حالياً.' : 'Aucune notification pour le moment.'}
+                          </p>
+                        </div>
+                      ) : (
+                        notifications.map((n) => (
+                          <div
+                            key={n.id}
+                            onClick={() => !n.read && markAsRead(n.id)}
+                            className={`p-3 rounded-xl border transition-all cursor-pointer ${n.read
+                              ? 'bg-slate-50/70 dark:bg-slate-900/60 border-slate-100 dark:border-slate-800 text-slate-600 dark:text-slate-400'
+                              : 'bg-teal-50/90 dark:bg-teal-950/40 border-teal-200 dark:border-teal-800/60 text-slate-900 dark:text-slate-100 font-semibold shadow-xs'
+                              }`}
+                          >
+                            <div className="flex items-start justify-between gap-2">
+                              <span className="font-extrabold text-[11px] text-slate-900 dark:text-white flex items-center gap-1.5 min-w-0">
+                                {!n.read && <span className="w-1.5 h-1.5 rounded-full bg-teal-500 shrink-0" />}
+                                <span className="shrink-0">{n.icon || '🔔'}</span>
+                                <span className="truncate">{getNotificationTitle(n, lang)}</span>
+                              </span>
+                              <span
+                                className="text-[9px] sm:text-[10px] text-slate-400 dark:text-slate-500 shrink-0 font-bold"
+                                title={getExactNotificationFull(n)}
+                              >
+                                {formatExactNotificationTime(n, lang)}
+                              </span>
+                            </div>
+                            <p className="text-[11px] text-slate-600 dark:text-slate-300 mt-1 leading-relaxed">
+                              {getNotificationMessage(n, lang)}
+                            </p>
+                          </div>
+                        ))
+                      )}
+                    </div>
+
+                    {notifications.length > 0 && (
+                      <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-end">
+                        <button
+                          type="button"
+                          onClick={() => clearNotifications()}
+                          className="text-[11px] font-bold text-rose-500 hover:text-rose-700 px-2 py-1 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/40 cursor-pointer transition-colors"
+                          title={lang === 'ar' ? 'مسح سجل الإشعارات' : "Effacer l'historique des notifications"}
+                        >
+                          {lang === 'ar' ? 'مسح السجل' : "Effacer l'historique"}
+                        </button>
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
-            )}
-          </div>
+                </>
+              )}
+            </div>
+          )}
 
-          {/* Day / Night Theme Toggle */}
-          <DayNightToggle isDark={isDark} onToggle={toggleTheme} />
+          {/* Day / Night Theme Toggle (Desktop top bar only — on mobile it lives inside the right slide-out drawer) */}
+          <div className="hidden md:flex items-center">
+            <DayNightToggle isDark={isDark} onToggle={toggleTheme} />
+          </div>
 
           {/* Language Switcher — Flag Toggle Switch with Real-Time Translation Support */}
           <button
@@ -304,7 +350,7 @@ export default function Navbar({ onOpenLogin, onOpenSignup }) {
 
                 {/* Dropdown Card */}
                 {showUserDropdown && (
-                  <div 
+                  <div
                     className="absolute right-0 rtl:right-auto rtl:left-0 mt-2.5 w-72 sm:w-80 bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-100 dark:border-slate-800 p-2.5 z-[60] text-left rtl:text-right animate-in fade-in slide-in-from-top-2 duration-150"
                   >
                     {/* Header: User Info & Verification Badge */}
@@ -334,9 +380,9 @@ export default function Navbar({ onOpenLogin, onOpenSignup }) {
 
                     {/* Menu Items */}
                     <div className="space-y-0.5">
-                      {/* Item 1: Mes Rendez-vous & Suivi / Espace Médecin */}
+                      {/* Item 1: Mes Rendez-vous & Suivi / Espace Dédié */}
                       <Link
-                        to={user?.role === 'DOCTOR' ? '/doctor/dashboard' : '/patient/dashboard'}
+                        to={user?.role === 'DOCTOR' ? '/doctor/dashboard' : user?.role === 'SUPER_ADMIN' ? '/admin/dashboard' : '/patient/dashboard'}
                         onClick={() => setShowUserDropdown(false)}
                         className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-700 dark:text-slate-200 hover:bg-teal-50 dark:hover:bg-teal-950/40 hover:text-teal-800 dark:hover:text-teal-300 font-bold text-xs sm:text-sm transition-all group"
                       >
@@ -346,7 +392,9 @@ export default function Navbar({ onOpenLogin, onOpenSignup }) {
                         <span>
                           {user?.role === 'DOCTOR'
                             ? (lang === 'ar' ? 'فضاء الطبيب وجدول المواعيد' : 'Espace Médecin & Agenda')
-                            : (lang === 'ar' ? 'مواعيدي ومتابعتي' : 'Mes Rendez-vous & Suivi')}
+                            : user?.role === 'SUPER_ADMIN'
+                              ? (lang === 'ar' ? 'لوحة تحكم الإدارة' : 'Console Administration')
+                              : (lang === 'ar' ? 'مواعيدي ومتابعتي' : 'Mes Rendez-vous & Suivi')}
                         </span>
                       </Link>
 
@@ -431,7 +479,10 @@ export default function Navbar({ onOpenLogin, onOpenSignup }) {
             dir={isRtl ? 'rtl' : 'ltr'}
           >
             {/* Header */}
-            <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-teal-500/10 dark:bg-slate-800/50">
+            <div
+              style={nativeMobile ? { paddingTop: 'max(env(safe-area-inset-top, 0px), 36px)' } : undefined}
+              className="p-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-teal-500/10 dark:bg-slate-800/50"
+            >
               <Link to="/" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-2">
                 <img src="/images/logo.png" alt={lang === 'ar' ? 'موعدي' : 'Maw2idi'} className="w-8 h-8 rounded-xl object-contain bg-white p-0.5 shadow-xs" />
                 <span className="text-xl font-black text-teal-600 dark:text-teal-400">
@@ -546,6 +597,15 @@ export default function Navbar({ onOpenLogin, onOpenSignup }) {
                   >
                     <span className="text-lg">🩺</span>
                     <span>{t('nav_doctor_space', 'Espace Médecin')}</span>
+                  </Link>
+                ) : !mobileMode && (role === 'SUPER_ADMIN' || role === 'ADMIN') ? (
+                  <Link
+                    to="/admin/dashboard"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-900 dark:text-amber-200 font-black text-xs sm:text-sm border border-amber-200 dark:border-amber-800/60"
+                  >
+                    <span className="text-lg">🛡️</span>
+                    <span>Console Administrateur</span>
                   </Link>
                 ) : !isAuthenticated ? (
                   <Link

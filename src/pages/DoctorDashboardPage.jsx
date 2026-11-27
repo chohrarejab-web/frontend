@@ -10,11 +10,22 @@ import api from '../services/api';
 import DoctorHeader from '../components/doctor/DoctorHeader';
 import DoctorTabsNav from '../components/doctor/DoctorTabsNav';
 import { ENABLE_REVIEWS } from '../config/features';
+import { isMobileApp, MOBILE_DOCTOR_TABS } from '../utils/mobilePlatform';
 
-// Lightweight Doctor Companion Tabs (mobile-friendly essentials only)
+// Lazy-loaded Doctor Dashboard Tabs for fast loading
+const DoctorCaisseTab = lazy(() => import('../components/doctor/DoctorCaisseTab'));
+const DoctorEhrTab = lazy(() => import('../components/doctor/DoctorEhrTab'));
+const DoctorCabinetTab = lazy(() => import('../components/doctor/DoctorCabinetTab'));
+const DoctorWhatsappTab = lazy(() => import('../components/doctor/DoctorWhatsappTab'));
 const DoctorAgendaTab = lazy(() => import('../components/doctor/DoctorAgendaTab'));
+const DoctorOrdonnanceTab = lazy(() => import('../components/doctor/DoctorOrdonnanceTab'));
+const DoctorCnamTab = lazy(() => import('../components/doctor/DoctorCnamTab'));
 const DoctorRetardTab = lazy(() => import('../components/doctor/DoctorRetardTab'));
+const DoctorLiaisonTab = lazy(() => import('../components/doctor/DoctorLiaisonTab'));
+const DoctorReputationTab = lazy(() => import('../components/doctor/DoctorReputationTab'));
 const DoctorTeleconsultTab = lazy(() => import('../components/doctor/DoctorTeleconsultTab'));
+const DoctorSubscriptionTab = lazy(() => import('../components/doctor/DoctorSubscriptionTab'));
+const DoctorGuidedTour = lazy(() => import('../components/doctor/DoctorGuidedTour'));
 
 export default function DoctorDashboardPage() {
   const { user, loading, logout } = useAuth();
@@ -22,8 +33,16 @@ export default function DoctorDashboardPage() {
   const { isDark, toggleTheme } = useTheme();
   const navigate = useNavigate();
 
-  // Active Tab state: default to 'agenda' matching user's latest screenshot
+  // Active Tab state: default to 'agenda'
   const [activeTab, setActiveTab] = useState('agenda');
+  const mobileMode = isMobileApp();
+
+  // In mobile app mode, keep doctor dashboard lightweight (Agenda, Retard, Teleconsultation)
+  useEffect(() => {
+    if (mobileMode && !MOBILE_DOCTOR_TABS.includes(activeTab)) {
+      setActiveTab('agenda');
+    }
+  }, [mobileMode, activeTab]);
   const [appointments, setAppointments] = useState([]);
   const [doctorProfile, setDoctorProfile] = useState(null);
   const [tourOpen, setTourOpen] = useState(false);
@@ -31,9 +50,9 @@ export default function DoctorDashboardPage() {
   // Security Gate: Verify doctor authentication and role
   const isDoctorAuthorized = Boolean(
     user && (
-      user.role === 'DOCTOR' || 
-      user.role === 'PRATICIEN' || 
-      user.role === 'ADMIN' || 
+      user.role === 'DOCTOR' ||
+      user.role === 'PRATICIEN' ||
+      user.role === 'ADMIN' ||
       user.role === 'SUPER_ADMIN' ||
       Boolean(user.doctorId)
     )
@@ -42,7 +61,7 @@ export default function DoctorDashboardPage() {
   const isLocked = typeof window !== 'undefined' && sessionStorage.getItem('sahatn_doctor_session_locked') === 'true';
 
   const hasCachedDoctorAuth = typeof window !== 'undefined' && (
-    localStorage.getItem('sahatn_doctor_authenticated') === 'true' || 
+    localStorage.getItem('sahatn_doctor_authenticated') === 'true' ||
     sessionStorage.getItem('sahatn_doctor_authenticated') === 'true'
   );
 
@@ -72,7 +91,7 @@ export default function DoctorDashboardPage() {
 
     const handleBrowserNavigation = (event) => {
       console.warn('[Security Guard] Browser back/forward navigation detected from Doctor Dashboard. Locking session.');
-      
+
       // 1. Mark session as locked
       sessionStorage.setItem('sahatn_doctor_session_locked', 'true');
       sessionStorage.removeItem('sahatn_doctor_active_session');
@@ -80,9 +99,9 @@ export default function DoctorDashboardPage() {
       localStorage.removeItem('sahatn_doctor_authenticated');
       localStorage.removeItem('sahatn_doctor_user');
       localStorage.removeItem('sahatn_token');
-      
+
       if (typeof logout === 'function') {
-        try { logout(); } catch (e) {}
+        try { logout(); } catch (e) { }
       }
 
       // 2. Force redirection to Doctor Auth with locked notice
@@ -118,7 +137,7 @@ export default function DoctorDashboardPage() {
     setActiveDoctorId(newDocId);
     try {
       localStorage.setItem('sahatn_active_doctor_id', newDocId);
-    } catch (e) {}
+    } catch (e) { }
     setSearchParams({ doctorId: newDocId });
   };
 
@@ -189,7 +208,7 @@ export default function DoctorDashboardPage() {
             });
           }
         }
-      } catch (e) {}
+      } catch (e) { }
 
       const res = await api.getQueue(doctorId).catch(() => null);
       const queueData = res?.appointments || res?.data || res?.queue || [];
@@ -198,8 +217,8 @@ export default function DoctorDashboardPage() {
         setAppointments(scoped);
         const inConsult = scoped.find(a => {
           const isConsulting = (
-            a.stage === 'EN_CONSULTATION' || 
-            a.status === 'IN_CONSULTATION' || 
+            a.stage === 'EN_CONSULTATION' ||
+            a.status === 'IN_CONSULTATION' ||
             a.status === 'IN_PROGRESS'
           );
           if (!isConsulting) return false;
@@ -229,8 +248,24 @@ export default function DoctorDashboardPage() {
     if (joinDoctor && doctorId) {
       joinDoctor(doctorId);
     }
+    // Keep Flutter native FCM token registration synced with the active doctorId
+    try {
+      const token = localStorage.getItem('sahatn_token');
+      if (doctorId && token && typeof window !== 'undefined' && window.Maw2idiAuth?.postMessage) {
+        window.Maw2idiAuth.postMessage(JSON.stringify({
+          action: 'LOGIN',
+          token,
+          userId: user?.uuid || user?.id || null,
+          role: user?.role || 'DOCTOR',
+          doctorId,
+          lang: localStorage.getItem('sahatn_lang') || 'fr'
+        }));
+      }
+    } catch {
+      // ignore outside Flutter
+    }
     loadData();
-  }, [doctorId, joinDoctor, loadData]);
+  }, [doctorId, joinDoctor, loadData, user?.uuid, user?.id, user?.role]);
 
   // Live socket synchronization for new bookings & queue changes
   useEffect(() => {
@@ -283,7 +318,7 @@ export default function DoctorDashboardPage() {
             const filtered = list.filter(s => (s.patient || s.name || '').toLowerCase().trim() !== pName.toLowerCase().trim());
             localStorage.setItem(key, JSON.stringify(filtered));
           }
-        } catch (e) {}
+        } catch (e) { }
         setCurrentPatient(pName);
       }
     } catch (err) {
@@ -303,7 +338,7 @@ export default function DoctorDashboardPage() {
           const filtered = list.filter(s => (s.patient || s.name || '').toLowerCase().trim() !== patientName.toLowerCase().trim());
           localStorage.setItem(key, JSON.stringify(filtered));
         }
-      } catch (e) {}
+      } catch (e) { }
     }
     setCurrentPatient(patientName);
   };
@@ -366,7 +401,7 @@ export default function DoctorDashboardPage() {
 
   return (
     <div className={`min-h-screen w-full flex flex-col transition-colors duration-300 ${isDark ? 'dark bg-[#071120] text-slate-100' : 'bg-[#F0FAF9] text-slate-800'}`}>
-      
+
       {/* ════════════════ TOP DEDICATED DOCTOR HEADER ════════════════ */}
       <DoctorHeader
         doctorId={doctorId}
@@ -388,11 +423,12 @@ export default function DoctorDashboardPage() {
 
       {/* ════════════════ MAIN BODY CONTAINER ════════════════ */}
       <main className="flex-1 w-full max-w-[1780px] mx-auto px-3 sm:px-6 lg:px-8 py-5 space-y-5">
-        
-        {/* ════════ LIGHTWEIGHT DOCTOR COMPANION TABS ════════ */}
+
+        {/* ════════ HORIZONTAL SCROLLABLE TABS BAR (Screenshots 1-5) ════════ */}
         <DoctorTabsNav
           activeTab={activeTab}
           onSelectTab={setActiveTab}
+          onOpenTour={() => setTourOpen(true)}
         />
 
         {/* ════════ ACTIVE TAB CONTENT ════════ */}
@@ -417,16 +453,105 @@ export default function DoctorDashboardPage() {
           />
         )}
 
-        {activeTab === 'retard' && (
-          <DoctorRetardTab key={`retard-${doctorId}`} doctorId={doctorId} doctorName={doctorName} />
-        )}
+          {activeTab === 'caisse' && (
+            <DoctorCaisseTab key={`caisse-${doctorId}`} doctorId={doctorId} doctorName={doctorName} />
+          )}
 
-        {activeTab === 'teleconsult' && (
-          <DoctorTeleconsultTab doctorName={doctorName} />
-        )}
+          {activeTab === 'ehr' && (
+            <DoctorEhrTab key={`ehr-${doctorId}`} doctorId={doctorId} doctorName={doctorName} appointments={appointments} />
+          )}
+
+          {activeTab === 'cabinet' && (
+            <DoctorCabinetTab
+              doctorId={doctorId}
+              doctorName={doctorName}
+              doctorSpecialty={doctorSpecialty}
+              doctorProfile={doctorProfile}
+            />
+          )}
+
+          {activeTab === 'whatsapp' && (
+            <DoctorWhatsappTab
+              doctorId={doctorId}
+              doctorName={doctorName}
+              doctorSpecialty={doctorSpecialty}
+              currentPatient={currentPatient}
+              queue={appointments}
+            />
+          )}
+
+          {activeTab === 'agenda' && (
+            <DoctorAgendaTab
+              queue={appointments}
+              currentPatient={currentPatient}
+              onCallPatient={handleCallSpecificPatient}
+              onEndConsultation={() => setCurrentPatient('')}
+              playChime={playMedicalChime}
+              onSelectTab={setActiveTab}
+              doctorId={doctorId}
+              doctorName={doctorName}
+              doctorSpecialty={doctorSpecialty}
+              doctorProfile={doctorProfile}
+            />
+          )}
+
+          {activeTab === 'ordonnance' && (
+            <DoctorOrdonnanceTab
+              doctorId={doctorId}
+              doctorName={doctorName}
+              doctorSpecialty={doctorSpecialty}
+              doctorProfile={doctorProfile}
+              currentPatient={currentPatient}
+            />
+          )}
+
+          {activeTab === 'cnam' && (
+            <DoctorCnamTab
+              doctorId={doctorId}
+              doctorName={doctorName}
+              doctorProfile={doctorProfile}
+            />
+          )}
+
+          {activeTab === 'retard' && (
+            <DoctorRetardTab key={`retard-${doctorId}`} doctorId={doctorId} doctorName={doctorName} />
+          )}
+
+          {activeTab === 'liaison' && (
+            <DoctorLiaisonTab
+              doctorId={doctorId}
+              doctorName={doctorName}
+              doctorSpecialty={doctorSpecialty}
+              doctorProfile={doctorProfile}
+            />
+          )}
+
+          {ENABLE_REVIEWS && activeTab === 'reputation' && (
+            <DoctorReputationTab doctorId={doctorId} doctorName={doctorName} />
+          )}
+
+          {activeTab === 'teleconsult' && (
+            <DoctorTeleconsultTab doctorName={doctorName} />
+          )}
+
+          {activeTab === 'abonnement' && (
+            <DoctorSubscriptionTab doctorId={doctorId} doctorName={doctorName} />
+          )}
         </Suspense>
 
       </main>
+
+      {/* ════════ GUIDED ANIMATED TOUR ════════ */}
+      {tourOpen && (
+        <Suspense fallback={null}>
+          <DoctorGuidedTour
+            activeTab={activeTab}
+            isOpen={tourOpen}
+            onClose={() => setTourOpen(false)}
+            onFinish={() => setTourOpen(false)}
+          />
+        </Suspense>
+      )}
 
     </div>
   );

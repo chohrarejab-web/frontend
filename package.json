@@ -5,10 +5,20 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:mobile": "vite --mode mobile",
     "build": "vite build",
-    "preview": "vite preview"
+    "build:mobile": "vite build --mode mobile",
+    "preview": "vite preview",
+    "cap:sync": "npm run build:mobile && npx cap sync",
+    "cap:android": "npm run build:mobile && npx cap sync android && npx cap open android"
   },
   "dependencies": {
+    "@capacitor/android": "^8.6.3",
+    "@capacitor/app": "^8.1.2",
+    "@capacitor/cli": "^8.6.3",
+    "@capacitor/core": "^8.6.3",
+    "@capacitor/network": "^8.0.1",
+    "@capacitor/status-bar": "^8.0.4",
     "leaflet": "^1.9.4",
     "lucide-react": "^1.52.0",
     "qrcode": "^1.5.4",
