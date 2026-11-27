@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { Stethoscope, Bell, LogOut, Volume2, Camera, Edit2, Home, Sun, Moon, X } from 'lucide-react';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
+import { Stethoscope, Bell, LogOut, Volume2, Camera, Edit2, Home, X } from 'lucide-react';
 import DayNightToggle from '../common/DayNightToggle';
 import { isMobileApp } from '../../utils/mobilePlatform';
 import { useAuth } from '../../context/AuthContext';
@@ -217,6 +217,17 @@ export default function DoctorHeader({
 
   // Doctor Profile modal state
   const [showProfileModal, setShowProfileModal] = useState(false);
+  const location = useLocation();
+
+  useEffect(() => {
+    const handleOpenProfile = () => setShowProfileModal(true);
+    window.addEventListener('sahatn:open-doctor-profile', handleOpenProfile);
+    const params = new URLSearchParams(location.search);
+    if (params.get('openProfile') === '1') {
+      setShowProfileModal(true);
+    }
+    return () => window.removeEventListener('sahatn:open-doctor-profile', handleOpenProfile);
+  }, [location.search]);
   const [currentDoctorName, setCurrentDoctorName] = useState(doctorName);
   const [currentSpecialty, setCurrentSpecialty] = useState(specialty);
   const [currentAvatar, setCurrentAvatar] = useState(avatar || user?.avatar || '/images/doctor_selim.jpg');
@@ -270,26 +281,29 @@ export default function DoctorHeader({
       <div className="w-full max-w-[1780px] mx-auto flex flex-wrap min-[1440px]:flex-nowrap items-center justify-between gap-1.5 sm:gap-2">
         
         {/* ════════ 1. LEFT: LOGOS & INTERACTIVE DOCTOR PROFILE (Order 1 on all screens) ════════ */}
-        <div className="flex items-center gap-1.5 sm:gap-2.5 min-w-0 order-1 shrink-0">
-          {/* Brand Logo: Maw2idi -> Return to Public Landing Page */}
-          <Link
-            to="/doctor/dashboard"
-            id="doctor-brand-logo-link"
-            onClick={() => onResetTab && onResetTab()}
-            className="flex items-center gap-2 shrink-0 group hover:opacity-90 transition-opacity cursor-pointer"
-            title={lang === 'ar' ? "لوحة تحكم الطبيب (الصفحة الرئيسية)" : "Espace Praticien — Tableau de bord (Page principale)"}
-          >
-            <img
-              src="/images/logo.png"
-              alt={lang === 'ar' ? 'موعدي' : 'Maw2idi'}
-              className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg object-contain shadow-xs group-hover:scale-105 transition-transform bg-white/95 p-0.5"
-            />
-            <span className="text-sm sm:text-base font-black tracking-tight text-white whitespace-nowrap hidden min-[380px]:inline">
-              {lang === 'ar' ? 'موعدي' : 'Maw2idi'}
-            </span>
-          </Link>
-
-          <div className="h-5 sm:h-6 w-px bg-slate-700/80 hidden xs:block"></div>
+        <div className="flex items-center gap-1.5 sm:gap-2.5 min-w-0 flex-1 min-[1440px]:flex-initial order-1">
+          {/* Brand Logo: Maw2idi (compact icon-only on mobile app so Row 1 never wraps) */}
+          {!mobileMode && (
+            <>
+              <Link
+                to="/doctor/dashboard"
+                id="doctor-brand-logo-link"
+                onClick={() => onResetTab && onResetTab()}
+                className="flex items-center gap-2 shrink-0 group hover:opacity-90 transition-opacity cursor-pointer"
+                title={lang === 'ar' ? "لوحة تحكم الطبيب (الصفحة الرئيسية)" : "Espace Praticien — Tableau de bord (Page principale)"}
+              >
+                <img
+                  src="/images/logo.png"
+                  alt={lang === 'ar' ? 'موعدي' : 'Maw2idi'}
+                  className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg object-contain shadow-xs group-hover:scale-105 transition-transform bg-white/95 p-0.5"
+                />
+                <span className="text-sm sm:text-base font-black tracking-tight text-white whitespace-nowrap hidden min-[380px]:inline">
+                  {lang === 'ar' ? 'موعدي' : 'Maw2idi'}
+                </span>
+              </Link>
+              <div className="h-5 sm:h-6 w-px bg-slate-700/80 hidden xs:block"></div>
+            </>
+          )}
 
           {/* Interactive Doctor Profile Picture & Name */}
           <button
@@ -534,17 +548,8 @@ export default function DoctorHeader({
             )}
           </div>
 
-          {/* Compact Theme Icon on Mobile App, Full Day/Night Switch on Desktop */}
-          {mobileMode ? (
-            <button
-              type="button"
-              onClick={onToggleTheme}
-              className="p-2 rounded-xl bg-white/10 text-amber-300 hover:bg-white/20 transition-colors cursor-pointer"
-              title={isDark ? 'Mode Clair' : 'Mode Sombre'}
-            >
-              {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4 text-sky-200" />}
-            </button>
-          ) : (
+          {/* Day/Night Toggle Switch (desktop web only — removed on mobile app) */}
+          {!mobileMode && (
             <div className="scale-[0.78] sm:scale-90 origin-center shrink-0">
               <DayNightToggle
                 isDark={isDark}

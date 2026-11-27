@@ -28,7 +28,9 @@ export default function MobileBottomNav({ onOpenLogin }) {
       path: '/search',
       label: isAr ? 'الأطباء' : 'Médecins',
       icon: Search,
-      active: location.pathname.startsWith('/search') || location.pathname.startsWith('/doctor/')
+      active:
+        location.pathname.startsWith('/search') ||
+        (location.pathname.startsWith('/doctor/') && !location.pathname.startsWith('/doctor/dashboard'))
     },
     isDoctor
       ? {
@@ -57,6 +59,14 @@ export default function MobileBottomNav({ onOpenLogin }) {
   const handleNav = (item) => {
     if ((item.id === 'appointments' || item.id === 'settings') && !isAuthenticated && onOpenLogin) {
       onOpenLogin();
+      return;
+    }
+    if (item.id === 'settings' && isDoctor) {
+      if (location.pathname.startsWith('/doctor/dashboard')) {
+        window.dispatchEvent(new CustomEvent('sahatn:open-doctor-profile'));
+      } else {
+        navigate('/doctor/dashboard?openProfile=1');
+      }
       return;
     }
     navigate(item.path);
