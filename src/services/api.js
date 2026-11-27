@@ -3,10 +3,15 @@
  * Automatically handles JWT Bearer tokens, CSRF token protection & FR/AR alert localization
  */
 import { translateAlertMessage, getCurrentLang } from '../utils/alertTranslator';
+import { isNativeMobile } from '../utils/mobilePlatform';
 
 export const PRIMARY_API_URL = (import.meta.env.VITE_API_URL || 'https://maw3edi-backend-production.up.railway.app').replace(/\/$/, '');
-const isLocalhostHost = typeof window !== 'undefined' && /^(localhost|127\.0\.0\.1)$/i.test(window.location.hostname);
-export const FALLBACK_API_URL = isLocalhostHost
+const isDesktopLocalDev =
+  typeof window !== 'undefined' &&
+  !isNativeMobile() &&
+  /^(localhost|127\.0\.0\.1)$/i.test(window.location.hostname) &&
+  window.location.port === '5173';
+export const FALLBACK_API_URL = isDesktopLocalDev
   ? (import.meta.env.VITE_FALLBACK_API_URL || 'http://localhost:4000').replace(/\/$/, '')
   : '';
 export const API_BASE_URL = PRIMARY_API_URL;
@@ -33,18 +38,29 @@ export async function fetchWithFallback(endpoint, options = {}) {
       FALLBACK_API_URL &&
       [502, 503, 504].includes(response.status)
     ) {
-      console.warn(`[API] Primary backend (${activeApiUrl}) returned ${response.status}. Falling back to ${FALLBACK_API_URL}`);
-      activeApiUrl = FALLBACK_API_URL;
-      csrfToken = null;
-      return await fetch(buildApiUrl(endpoint, FALLBACK_API_URL), options);
+      console.warn(`[API] Primary backend (${activeApiUrl}) returned ${response.status}. Trying fallback ${FALLBACK_API_URL}`);
+      try {
+        const fbRes = await fetch(buildApiUrl(endpoint, FALLBACK_API_URL), options);
+        activeApiUrl = FALLBACK_API_URL;
+        csrfToken = null;
+        return fbRes;
+      } catch {
+        return response;
+      }
     }
     return response;
   } catch (err) {
     if (activeApiUrl !== FALLBACK_API_URL && FALLBACK_API_URL && err?.name !== 'AbortError') {
-      console.warn(`[API] Primary backend (${activeApiUrl}) unavailable (${err.message}). Falling back to ${FALLBACK_API_URL}`);
-      activeApiUrl = FALLBACK_API_URL;
-      csrfToken = null;
-      return await fetch(buildApiUrl(endpoint, FALLBACK_API_URL), options);
+      console.warn(`[API] Primary backend (${activeApiUrl}) unavailable (${err.message}). Trying fallback ${FALLBACK_API_URL}`);
+      try {
+        const fbRes = await fetch(buildApiUrl(endpoint, FALLBACK_API_URL), options);
+        activeApiUrl = FALLBACK_API_URL;
+        csrfToken = null;
+        return fbRes;
+      } catch {
+        // Keep primary URL active if fallback is also unreachable
+        throw err;
+      }
     }
     throw err;
   }
@@ -140,6 +156,7 @@ export const api = {
   getDoctorSchedule: (doctorId = 'doc-1') => apiRequest(`/api/appointments/schedule/${doctorId}`),
   saveDoctorSchedule: (doctorId = 'doc-1', schedule) => apiRequest(`/api/appointments/schedule/${doctorId}`, { method: 'PUT', body: JSON.stringify(schedule) }),
   getAvailableSlots: (doctorId = 'doc-1', dateIso) => apiRequest(`/api/appointments/available-slots/${doctorId}${dateIso ? `?dateIso=${encodeURIComponent(dateIso)}` : ''}`),
+  getAvailableSlotsBatch: (doctorId = 'doc-1', dates = []) => apiRequest(`/api/appointments/available-slots-batch/${doctorId}?dates=${encodeURIComponent(dates.join(','))}`),
   getBlockedSlots: (doctorId = 'doc-1') => apiRequest(`/api/appointments/blocked-slots/${doctorId}`),
   blockSlot: (payload) => apiRequest('/api/appointments/block', { method: 'POST', body: JSON.stringify(payload) }),
   unblockSlot: (id, params = {}) => {

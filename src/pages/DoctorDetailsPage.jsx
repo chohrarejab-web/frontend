@@ -424,6 +424,8 @@ export default function DoctorDetailsPage({ onOpenLogin }) {
   // Booking Modal State
   const [showBookingModal, setShowBookingModal] = useState(false);
   const [bookingSlot, setBookingSlot] = useState('');
+  const [slotUnavailable, setSlotUnavailable] = useState(false);
+  const [checkingSlot, setCheckingSlot] = useState(false);
   const [bookingDateStr, setBookingDateStr] = useState('');
   const [bookingDateIso, setBookingDateIso] = useState('');
   const [beneficiaryType, setBeneficiaryType] = useState('self');
@@ -720,33 +722,98 @@ export default function DoctorDetailsPage({ onOpenLogin }) {
     return get5ConsecutiveDays(calendarOffset, isAr);
   }, [calendarOffset, isAr]);
 
-  // Fetch real persistent doctor schedule and appointments from database
+  // Fetch real persistent doctor schedule and live slot availability in 1 single batch request (eliminates 6x N+1 fan-out)
   const fetchDoctorScheduleAndAppointments = useCallback(async () => {
     if (!doctor?.id) return;
     try {
-      const [schedRes, aptsRes] = await Promise.all([
+      const dates = calendarDays.map((d) => d.iso);
+      const batchRes = await api.getAvailableSlotsBatch(doctor.id, dates).catch(() => null);
+
+      if (batchRes?.success && batchRes?.days) {
+        if (batchRes.schedule) {
+          setDoctorSchedule(batchRes.schedule);
+        }
+        const publicBookedAndBlocked = [];
+        calendarDays.forEach((day) => {
+          const data = batchRes.days[day.iso];
+          if (!data) return;
+          const booked = Array.isArray(data.bookedSlots) ? data.bookedSlots : [];
+          const blocked = Array.isArray(data.blockedSlots) ? data.blockedSlots : [];
+          booked.forEach((time) => {
+            publicBookedAndBlocked.push({
+              id: `pub-booked-${day.iso}-${time}`,
+              dateIso: day.iso,
+              date: day.fullDateStr,
+              time,
+              status: 'CONFIRMED'
+            });
+          });
+          blocked.forEach((time) => {
+            publicBookedAndBlocked.push({
+              id: `pub-blocked-${day.iso}-${time}`,
+              dateIso: day.iso,
+              date: day.fullDateStr,
+              time,
+              status: 'BLOCKED'
+            });
+          });
+        });
+        setDoctorAppointments(publicBookedAndBlocked);
+        return;
+      }
+
+      // Fallback if batch endpoint is not yet deployed on older server
+      const [schedRes, ...slotResponses] = await Promise.all([
         api.getDoctorSchedule(doctor.id).catch(() => null),
-        api.getAppointments({ doctorId: doctor.id }).catch(() => null)
+        ...calendarDays.map((d) => api.getAvailableSlots(doctor.id, d.iso).catch(() => null))
       ]);
       if (schedRes?.schedule) {
         setDoctorSchedule(schedRes.schedule);
       }
-      if (aptsRes?.data && Array.isArray(aptsRes.data)) {
-        setDoctorAppointments(aptsRes.data);
-      }
+
+      const publicBookedAndBlocked = [];
+      slotResponses.forEach((res, idx) => {
+        const day = calendarDays[idx];
+        const data = res?.data || res;
+        if (!day || !data) return;
+        const booked = Array.isArray(data.bookedSlots) ? data.bookedSlots : [];
+        const blocked = Array.isArray(data.blockedSlots) ? data.blockedSlots : [];
+        booked.forEach((time) => {
+          publicBookedAndBlocked.push({
+            id: `pub-booked-${day.iso}-${time}`,
+            dateIso: day.iso,
+            date: day.fullDateStr,
+            time,
+            status: 'CONFIRMED'
+          });
+        });
+        blocked.forEach((time) => {
+          publicBookedAndBlocked.push({
+            id: `pub-blocked-${day.iso}-${time}`,
+            dateIso: day.iso,
+            date: day.fullDateStr,
+            time,
+            status: 'BLOCKED'
+          });
+        });
+      });
+
+      setDoctorAppointments(publicBookedAndBlocked);
     } catch (err) {
       console.warn('Error fetching doctor schedule/appointments:', err);
     }
-  }, [doctor?.id]);
+  }, [doctor?.id, calendarDays]);
 
   useEffect(() => {
     fetchDoctorScheduleAndAppointments();
   }, [fetchDoctorScheduleAndAppointments]);
 
-  // Real-time synchronization when doctor modifies timetable or new reservations arrive
+  // Real-time synchronization scoped strictly to this doctor (prevents 1000-user thundering herd)
   useEffect(() => {
     if (!socket) return;
-    const handleSync = () => {
+    const handleSync = (evt) => {
+      const evtDocId = evt?.doctorId || evt?.appointment?.doctorId || evt?.data?.doctorId;
+      if (evtDocId && doctor?.id && evtDocId !== doctor.id) return;
       fetchDoctorScheduleAndAppointments();
     };
 
@@ -1021,13 +1088,15 @@ export default function DoctorDetailsPage({ onOpenLogin }) {
     return reviewsList;
   }, [reviewsList, activeReviewFilter]);
 
-  // Open Booking Modal for a specific slot
+  // Open Booking Modal for a specific slot (with instant live availability pre-check)
   const handleOpenBooking = (dayObj, slotTime) => {
     setBookingSlot(slotTime);
     setBookingDateStr(dayObj.canonicalDateStr || dayObj.fullDateStr);
     setBookingDateIso(dayObj.iso);
     setBookingSuccessData(null);
     setBookingError('');
+    setSlotUnavailable(false);
+    setCheckingSlot(true);
     setBeneficiaryType('self');
     setGuestName(hasActiveAccount ? (activeAccount?.name || activeAccount?.fullName || '') : '');
     setGuestPhone(hasActiveAccount ? (activeAccount?.phone || '') : '');
@@ -1037,6 +1106,30 @@ export default function DoctorDetailsPage({ onOpenLogin }) {
     setBookingEmail(hasActiveAccount ? (activeAccount?.email || user?.email || '') : '');
     setConsultType('CABINET');
     setShowBookingModal(true);
+
+    const docId = doctor?.id || doctor?.uuid;
+    if (docId && dayObj?.iso && slotTime) {
+      api.getAvailableSlots(docId, dayObj.iso)
+        .then((res) => {
+          const data = res?.data || res || {};
+          const booked = Array.isArray(data.bookedSlots) ? data.bookedSlots : [];
+          const blocked = Array.isArray(data.blockedSlots) ? data.blockedSlots : [];
+          const available = Array.isArray(data.availableSlots) ? data.availableSlots : null;
+          const isTaken = booked.includes(slotTime) || blocked.includes(slotTime) || (available && available.length > 0 && !available.includes(slotTime));
+          if (isTaken) {
+            setSlotUnavailable(true);
+            setBookingError(
+              isAr
+                ? `الموعد ${slotTime} محجوز مسبقاً وغير متاح. يرجى اختيار موعد آخر.`
+                : `Le créneau ${slotTime} est déjà réservé et n'est plus disponible. Veuillez choisir un autre créneau.`
+            );
+          }
+        })
+        .catch(() => {})
+        .finally(() => setCheckingSlot(false));
+    } else {
+      setCheckingSlot(false);
+    }
   };
 
   // Submit Appointment Booking
@@ -2418,15 +2511,15 @@ export default function DoctorDetailsPage({ onOpenLogin }) {
                       {isAr ? 'الموعد المختار :' : 'Créneau sélectionné :'}
                     </span>
                     <span className="bg-[#e0f2fe] dark:bg-sky-950/80 text-[#0284c7] dark:text-sky-300 border border-sky-100 dark:border-sky-800/60 font-bold px-2.5 py-0.5 rounded-full text-xs">
-                      {bookingDateStr} à {bookingSlot}
+                      {bookingDateStr} {isAr ? '•' : 'à'} {bookingSlot}
                     </span>
                   </div>
                   <div className="flex items-center justify-between gap-2 border-t border-slate-100 dark:border-slate-800/60 pt-2">
                     <span className="font-semibold text-slate-600 dark:text-slate-300">
                       {isAr ? 'تعريفة الفحص :' : 'Honoraires consultation :'}
                     </span>
-                    <span className="font-extrabold text-slate-900 dark:text-white text-xs sm:text-sm">
-                      {doctor.fee || 70} TND
+                    <span className="font-extrabold text-slate-900 dark:text-white text-xs sm:text-sm" dir="ltr">
+                      {String(doctor.fee || 70).replace(/\s*TND/gi, '').trim()} TND
                     </span>
                   </div>
                   <div className="flex items-center justify-between gap-2 border-t border-slate-100 dark:border-slate-800/60 pt-2">
@@ -2651,10 +2744,14 @@ export default function DoctorDetailsPage({ onOpenLogin }) {
                   {/* 7. Submit Button */}
                   <button
                     type="submit"
-                    disabled={bookingSubmitting}
-                    className="w-full bg-[#0086cd] hover:bg-[#0074b3] active:scale-[0.99] text-white font-extrabold py-2.5 px-4 rounded-xl shadow-md text-xs sm:text-sm transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                    disabled={bookingSubmitting || slotUnavailable || checkingSlot}
+                    className="w-full bg-[#0086cd] hover:bg-[#0074b3] active:scale-[0.99] text-white font-extrabold py-2.5 px-4 rounded-xl shadow-md text-xs sm:text-sm transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {bookingSubmitting ? (
+                    {checkingSlot ? (
+                      <span>{isAr ? 'جاري التحقق من توفر الموعد...' : 'Vérification du créneau...'}</span>
+                    ) : slotUnavailable ? (
+                      <span>{isAr ? 'هذا الموعد غير متاح' : 'Créneau indisponible'}</span>
+                    ) : bookingSubmitting ? (
                       <span>{isAr ? 'جاري التأكيد...' : 'Validation en cours...'}</span>
                     ) : (
                       <span>✓ {isAr ? 'تأكيد حجز الموعد' : 'CONFIRMER MON RENDEZ-VOUS'}</span>
